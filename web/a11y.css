@@ -1,0 +1,292 @@
+/* ===================================================================
+   אן — שכבת הנגישות המשותפת לדף הצ'אט ולאזור המנהל.
+
+   היעד: WCAG 2.1 רמת AA — המכנה המשותף של ת"י 5568 חלק 1 (ספטמבר 2023,
+   שהוא WCAG 2.0 עם שינויים לאומיים) ושל EN 301 549. הקובץ הזה מרכז את
+   מה ששתי העמודים חולקים: כלי עזר לקוראי מסך, קישור דילוג, טבעת מיקוד
+   נראית, ופאנל הנגישות עצמו.
+
+   שלוש הערות שחשוב לא "לנקות":
+   * [hidden] { display: none !important } — סלקטור תכונה ו-class הם
+     באותה specificity, ובתיקו גיליון המחבר גובר על הדפדפן; בלי הכלל,
+     display:flex של הפאנל היה מנצח את hidden (באג מאומת בפרויקט הזה
+     פעמיים: באזור המנהל ובסרגל ההדגמה).
+   * .sr-only אינו display:none — טקסט שמוסתר כך *נקרא* ע"י קורא מסך.
+     זו הדרך להוסיף שם נגיש בלי לשנות את המסך.
+   * גודל הטקסט משתנה דרך font-size של השורש, וכל הגדלים בפרויקט הם ב-rem
+     — כך 1.4.4 (הגדלה ל-200%) עובד בלי שבירת פריסה.
+   =================================================================== */
+
+[hidden] { display: none !important; }
+
+/* ── טקסט לקוראי מסך בלבד ─────────────────────────────────────────── */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── קישור דילוג (2.4.1) — מוסתר עד שהוא מקבל מיקוד ──────────────── */
+.skip-link {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: var(--btn-primary);
+  border-radius: 0 0 12px 12px;
+  text-decoration: none;
+  transition: top 0.15s ease-in-out;
+}
+
+.skip-link:focus { top: 0; }
+
+/* ── מיקוד נראה (2.4.7) — לכל דבר שאפשר להגיע אליו במקלדת ────────── */
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* מצב "הדגשת מיקוד" מהפאנל: טבעת עבה יותר + רקע, גם ל-:focus רגיל
+   (עוזר למי שמנווט במקלדת ומתקשה לאתר את המיקוד). */
+html.a11y-focus-strong :focus {
+  outline: 4px solid var(--focus-ring) !important;
+  outline-offset: 3px !important;
+  background-color: #FFF3B0 !important;
+  color: #16121A !important;
+}
+
+/* ── גודל טקסט מהפאנל ────────────────────────────────────────────── */
+html { font-size: calc(100% * var(--a11y-text-scale, 1)); }
+
+/* ── הפחתת אנימציות ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ── מצב ניגודיות גבוהה ──────────────────────────────────────────────
+   עוקף את הטוקנים הסמנטיים בלבד (assets/colors.css), ולכן הוא חל על כל
+   הרכיבים בשני העמודים בלי לגעת בהם אחד-אחד. היעד כאן חורג מ-AA
+   (סביב 12:1 ומעלה) — זו העדפת משתמש, לא דרישת התקן. */
+html.a11y-contrast {
+  --bg-page: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --text-primary: #16121A;
+  --text-muted: #2A2230;
+  --text-accent: #6E2412;
+  --link: #6E2412;
+  --btn-primary: #5C1E0F;
+  --btn-primary-hover: #40140A;
+  --border: #16121A;
+  --border-control: #16121A;
+  --focus-ring: #16121A;
+  --bubble-bot: #FFFFFF;
+  --bubble-bot-text: #16121A;
+  --bubble-user: #FFFFFF;
+  --bubble-user-text: #16121A;
+  --sand-50: #FFFFFF;
+  --sand-100: #FFFFFF;
+  --sand-200: #16121A;
+  --sand-400: #16121A;
+  --plum-400: #16121A;
+  --danger: #8A1B0E;
+}
+
+/* בניגודיות גבוהה הבועות מובדלות בגבול ולא ברקע (שהוא לבן), והצללים
+   הרכים מוסרים — הם לא מוסיפים מידע ומטשטשים את הקו. */
+html.a11y-contrast .bubble,
+html.a11y-contrast .app-card,
+html.a11y-contrast .doc-card,
+html.a11y-contrast .login-card,
+html.a11y-contrast .a11y-panel {
+  border: 2px solid #16121A !important;
+  box-shadow: none !important;
+}
+
+html.a11y-contrast .bubble-user { border-inline-end: 6px solid #16121A !important; }
+html.a11y-contrast .bubble-anne { border-inline-start: 6px solid #16121A !important; }
+html.a11y-contrast .bubble-emergency { border: 3px solid #8A1B0E !important; }
+
+/* ── פאנל הנגישות ─────────────────────────────────────────────────── */
+.a11y-widget {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline-start: 16px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.a11y-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #FFFFFF;
+  background: var(--btn-primary);
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(46, 36, 51, 0.28);
+  cursor: pointer;
+}
+
+.a11y-toggle:hover { background: var(--btn-primary-hover); }
+
+.a11y-panel {
+  width: min(300px, calc(100vw - 32px));
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-control);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(46, 36, 51, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.a11y-panel h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.a11y-panel-note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.a11y-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.a11y-group:first-of-type { border-top: 0; padding-top: 0; }
+
+.a11y-group-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.a11y-size-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.a11y-step {
+  min-width: 44px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-control);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.a11y-step:hover:not(:disabled) { background: var(--sand-100); }
+.a11y-step:disabled { opacity: 0.5; cursor: default; }
+
+.a11y-size-value {
+  flex: 1;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  /* מספר באחוזים — תמיד LTR, גם בעמוד RTL */
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.a11y-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.a11y-check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--btn-primary);
+  cursor: pointer;
+}
+
+.a11y-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.a11y-reset {
+  min-height: 40px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-control);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.a11y-reset:hover { background: var(--sand-100); }
+
+.a11y-statement-link {
+  font-size: 0.85rem;
+  color: var(--link);
+}
+
+@media (max-width: 620px) {
+  .a11y-widget { inset-block-end: 88px; }  /* מעל שורת הכתיבה בצ'אט */
+}
+
+.a11y-panel-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}

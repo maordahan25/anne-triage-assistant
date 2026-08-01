@@ -1,0 +1,739 @@
+/* ===================================================================
+   אן — עיצוב ממשק הצ'אט (RTL, עברית).
+   הטוקנים הסמנטיים (--bubble-bot, --btn-primary...) מגיעים מ-
+   /assets/colors.css — מקור האמת של הפלטה; כאן רק פריסה ורכיבים.
+   העיצוב מבוסס על מסך ה-Stitch של הפרויקט (Anne Design System).
+   =================================================================== */
+
+* { box-sizing: border-box; }
+
+/* ── מלכודת specificity (אותו באג מאומת שתוקן ב-admin.css) ──────────────
+   סרגל מריץ ההדגמה (#demo-bar) מוסתר ומוצג דרך תכונת ה-HTML hidden
+   (web/demo.js). כלל הדפדפן לכך הוא [hidden] { display: none }, ולסלקטור
+   תכונה יש אותה specificity כמו לסלקטור class — ובתיקו גיליון המחבר גובר
+   על גיליון הדפדפן. לכן .demo-bar { display: flex } ניצח את hidden,
+   והסרגל היה גלוי *תמיד*: בשיחה רגילה (בלי שום הדגמה) הוא הופיע ריק
+   מתחת לכותרת, ואחרי סיום תרחיש או עצירה יזומה — demoBar.hidden = true
+   לא עשה כלום והוא נשאר כפס ריק שגוזל גובה מהצ'אט. הכלל הזה מחזיר
+   ל-hidden את מלוא הכוח (display: none = גם בלי מקום וגם בלי רווח), ולכן
+   הוא חייב להישאר כאן, לפני הגדרות ה-display של הרכיבים.
+   ────────────────────────────────────────────────────────────────────── */
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Heebo", "Rubik", "Arial Hebrew", sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── כותרת ─────────────────────────────────────────────────────────── */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 2px solid var(--coral-100);
+  background: var(--sand-100);
+}
+
+.header-titles { flex: 1; min-width: 0; }
+
+.header-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--success);
+  display: inline-block;
+}
+
+.header-subtitle {
+  margin: 1px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.disclaimer-chip {
+  background: var(--sand-100);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* כניסה לאזור המנהל — כפתור עדין בפינת הכותרת, שלא מתחרה בשיחה */
+.admin-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--link);
+  text-decoration: none;
+  background: var(--coral-50);
+  border: 1px solid var(--coral-100);
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-entry svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.admin-entry:hover {
+  background: var(--coral-100);
+  color: var(--coral-800);
+}
+
+/* ── אזור השיחה ────────────────────────────────────────────────────── */
+/* ה-main עוטף את יומן השיחה (הוא נחלק לשניים כשהתווסף role="log":
+   ה-landmark הוא main, ואזור ההודעות עצמו הוא ה-live region). */
+.chat-main {
+  flex: 1;
+  min-height: 0;          /* בלי זה גלילת הצ'אט נשברת בתוך flex */
+  display: flex;
+  flex-direction: column;
+}
+
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 16px 12px;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* יומן השיחה מקבל מיקוד מקישור הדילוג (tabindex="-1") — בלי טבעת כפולה */
+.chat:focus { outline: none; }
+.chat:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
+
+.header-nav { display: flex; align-items: center; gap: 8px; }
+
+.composer-a11y-link { color: var(--link); }
+
+.msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* אן בצד ימין (התחלת RTL), המשתמש בצד שמאל */
+.msg-row.anne { flex-direction: row; }
+.msg-row.user { flex-direction: row; justify-content: flex-end; }
+
+.msg-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  border: 2px solid var(--coral-100);
+  background: var(--sand-100);
+  flex-shrink: 0;
+}
+
+.msg-stack {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+}
+.msg-row.user .msg-stack { align-items: flex-end; }
+
+.bubble {
+  border-radius: 18px;
+  padding: 12px 16px;
+  line-height: 1.55;
+  font-size: 0.95rem;
+  box-shadow: 0 1px 3px rgba(158, 62, 43, 0.07);
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.bubble-anne {
+  background: var(--bubble-bot);
+  color: var(--bubble-bot-text);
+  border-bottom-right-radius: 4px; /* "זנב" לכיוון האווטאר */
+}
+
+.bubble-user {
+  background: var(--bubble-user);
+  color: var(--bubble-user-text);
+  border-bottom-left-radius: 4px;
+}
+
+.msg-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  padding: 0 6px;
+}
+
+/* ── חירום ─────────────────────────────────────────────────────────── */
+.bubble-emergency {
+  background: var(--safety-50);
+  border: 1px solid var(--safety-200);
+  color: var(--safety-800);
+}
+
+.emergency-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--safety-800);
+  border-bottom: 1px solid var(--safety-200);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.emergency-icon { font-size: 1.1rem; }
+
+.red-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.red-flag-chip {
+  background: var(--safety-100);
+  color: var(--safety-800);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+}
+
+/* בועת שגיאה טכנית — מובחנת מעדינות, לא אדום-חירום */
+.bubble-error {
+  background: var(--sand-100);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+}
+
+/* ── כרטיס איור ────────────────────────────────────────────────────── */
+.illustration-card {
+  margin: 12px 0 2px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.illustration-img {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  background: var(--sand-50);
+}
+
+.illustration-caption { padding: 10px 14px 12px; }
+
+.illustration-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.illustration-steps {
+  margin: 0;
+  padding-inline-start: 18px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.illustration-steps li { margin-bottom: 3px; }
+
+.sources-line {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(240, 217, 201, 0.7);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ── "אן מקלידה…" ─────────────────────────────────────────────────── */
+.typing-bubble {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 14px 18px;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--coral-200);
+  animation: typing-blink 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-blink {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* תווית השלב שאן נמצאת בו (בודקת / מתייעצת / מנסחת) — שקיפות למשתמש
+   בזמן ההמתנה, עד שהניסוח מתחיל לזרום. */
+.typing-label {
+  margin-inline-start: 4px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.typing-label:empty { display: none; }
+
+/* סמן מהבהב בזמן שהתשובה זורמת (נעלם כשהתשובה הסופית מגיעה) */
+.bubble-text.streaming::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-inline-start: 2px;
+  vertical-align: text-bottom;
+  background: var(--coral-400);
+  animation: caret-blink 1s steps(1) infinite;
+}
+
+@keyframes caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* ── שורת הקלט ─────────────────────────────────────────────────────── */
+.composer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px 8px;
+}
+
+.composer-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+#composer-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+#composer-input {
+  flex: 1;
+  border: 1px solid var(--border-control);
+  border-radius: 999px;
+  padding: 12px 18px;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  outline: none;
+}
+
+#composer-input::placeholder { color: var(--text-muted); }
+
+#composer-input:focus {
+  border-color: var(--coral-200);
+  box-shadow: 0 0 0 3px var(--coral-50);
+}
+
+#send-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  background: var(--btn-primary);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+#send-btn:hover:not(:disabled) { background: var(--btn-primary-hover); }
+#send-btn:disabled { opacity: 0.5; cursor: default; }
+
+#send-btn svg { width: 20px; height: 20px; }
+
+.composer-note {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 8px 0 2px;
+}
+
+/* ── צירוף תמונה (שכבת הראייה) ─────────────────────────────────────
+   כפתור האטב שקט בכוונה: הוא תוספת לתשאול, לא הפעולה הראשית — שליחת
+   ההודעה נשארת הכפתור הבולט היחיד. */
+#attach-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border-control);
+  background: var(--bg-surface);
+  color: var(--text-accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+#attach-btn:hover:not(:disabled) { background: var(--coral-50); }
+#attach-btn:disabled { opacity: 0.5; cursor: default; }
+
+#attach-btn svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  background: var(--sand-50);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.attach-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.attach-name {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attach-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.attach-remove:hover { background: var(--sand-200); }
+
+.attach-remove svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* התמונה בתוך בועת המשתמש — היא נשארת בדפדפן בלבד; השרת לא שומר אותה. */
+.bubble-image {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+/* שורת "מה נמצא בתמונה" מתחת לתשובת אן — שקיפות, בלשון מדידה. */
+.image-note {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background: var(--sand-50);
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--coral-200);
+  border-radius: 10px;
+}
+
+.image-note strong { color: var(--text-primary); }
+
+/* ── מסכים צרים ───────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .disclaimer-chip { display: none; }
+  /* הכניסה לאזור המנהל נשארת — מצטמצמת לאייקון בלבד */
+  .admin-entry { padding: 8px; }
+  .admin-entry span { display: none; }
+  .msg-stack { max-width: 85%; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   מריץ תרחישי ההדגמה — סרגל התקדמות וכרטיס סיכום.
+
+   מוצג רק כשרץ תרחיש (/?demo=<id>); בשיחה רגילה, בסיום תרחיש ובעצירה
+   יזומה הוא מוסתר לגמרי — הצ'אט נראה בדיוק כפי שנראה קודם, בלי פס ובלי
+   רווח ריק. ההסתרה היא תכונת hidden, והכלל [hidden] בראש הקובץ הוא מה
+   שמאפשר לה לגבור על display: flex שכאן (ראה ההסבר שם).
+   הסרגל דביק מתחת לכותרת כדי שהמרצה יראה תמיד באיזה תור אנחנו ואיפה
+   כפתור העצירה.
+   ══════════════════════════════════════════════════════════════════ */
+.demo-bar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px clamp(12px, 3vw, 24px);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.08);
+}
+
+.demo-badge {
+  flex: none;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: var(--lavender-50);
+  color: var(--lavender-800);
+  border: 1px solid var(--lavender-100);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.demo-info {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.demo-title { font-size: 0.92rem; font-weight: 700; color: var(--plum-600); }
+.demo-state { font-size: 0.76rem; color: var(--text-muted); min-height: 1em; }
+
+.demo-step {
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-accent);
+  white-space: nowrap;
+}
+
+/* הפס מתמלא משמאל לימין דרך width; בעמוד RTL הוא ממילא מתחיל מימין
+   כי המכל RTL — ולכן אין כאן היפוך ידני. */
+.demo-track {
+  flex: none;
+  width: clamp(90px, 18vw, 200px);
+  height: 8px;
+  border-radius: 999px;
+  background: var(--sand-200);
+  overflow: hidden;
+}
+
+.demo-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--coral-400);
+  transition: width 0.35s ease;
+}
+
+.demo-stop {
+  flex: none;
+  padding: 6px 16px;
+  border-radius: 999px;
+  /* 1.4.11 — גבול הפקד הוא מה שמזהה אותו על הרקע: safety-200 היה 2.1:1 */
+  border: 1px solid var(--danger);
+  background: var(--safety-50);
+  color: var(--safety-800);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.demo-stop:hover { background: var(--safety-100); }
+.demo-stop:disabled { opacity: 0.6; cursor: default; }
+
+/* ── כרטיס הסיכום ─────────────────────────────────────────────────── */
+/* כרטיס "צרפו תמונה כדי להמשיך" — שלב await_image בתרחיש ההדגמה.
+   נראה כמו כרטיס הסיכום (אותה שפה), אבל הוא בקשה ולא סיכום. */
+.demo-upload {
+  align-self: center;
+  width: min(680px, 100%);
+  margin: 14px auto 6px;
+  padding: 18px 20px;
+  background: var(--sand-50);
+  border: 1px dashed var(--coral-200);
+  border-radius: 20px;
+  text-align: center;
+}
+
+.demo-upload-title {
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.demo-upload-text {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.demo-summary {
+  align-self: center;
+  width: min(680px, 100%);
+  margin: 18px auto 8px;
+  padding: 20px 22px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--coral-400);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.1);
+}
+
+.demo-summary-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.demo-summary-sub {
+  margin: 2px 0 14px;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+}
+
+.demo-summary-row {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--sand-200);
+  font-size: 0.87rem;
+  line-height: 1.6;
+}
+
+.demo-summary-label {
+  flex: none;
+  width: 150px;
+  color: var(--text-muted);
+}
+
+.demo-summary-value { flex: 1; color: var(--text-primary); }
+
+.demo-summary-row.emergency .demo-summary-value {
+  color: var(--safety-800);
+  font-weight: 700;
+}
+
+.demo-summary-note {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  background: var(--sand-50);
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.demo-summary-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-demo-primary,
+.btn-demo-ghost {
+  padding: 9px 20px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-demo-primary {
+  background: var(--btn-primary);
+  color: #FFFFFF;
+  border: 1px solid transparent;
+}
+
+.btn-demo-ghost {
+  background: transparent;
+  color: var(--plum-600);
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 620px) {
+  .demo-track { display: none; }
+  .demo-summary-label { width: 110px; }
+}

@@ -1,0 +1,1716 @@
+/* ===================================================================
+   אן — עיצוב אזור המנהל (RTL, עברית).
+
+   מבוסס על מסך ה-Stitch "כניסה למנהל המערכת" ועל מערכת העיצוב
+   "Warm Clinical Care" של הפרויקט: אותה שפה של הצ'אט (חול חם, קורל,
+   שזיף, פינות רכות וצל אמביינטי עדין) — בכלים של הפרויקט: CSS רגיל
+   והטוקנים הסמנטיים מ-/assets/colors.css, בלי CDN ובלי framework.
+   =================================================================== */
+
+* { box-sizing: border-box; }
+
+/* ── מלכודת specificity (באג מאומת) ────────────────────────────────────
+   התצוגות והפס השגיאה מוסתרים/מוצגים דרך תכונת ה-HTML hidden (admin.js).
+   כלל הדפדפן לכך הוא [hidden] { display: none }, ולסלקטור תכונה יש אותה
+   specificity כמו לסלקטור class — ובתיקו, גיליון המחבר גובר על גיליון
+   הדפדפן. לכן .login-view/.admin-view/.error-strip עם display:flex ניצחו
+   את hidden, ו-hidden פשוט לא עשה כלום: אחרי התחברות מוצלחת מסך
+   ההתחברות נשאר על המסך (אזור המנהל נרנדר מתחתיו, מחוץ לקפל), ופס
+   השגיאה האדום היה גלוי כבר בטעינה. הכלל הזה מחזיר ל-hidden את מלוא
+   הכוח — ולכן הוא חייב להישאר לפני הגדרות ה-display של הרכיבים.
+   ────────────────────────────────────────────────────────────────────── */
+[hidden] { display: none !important; }
+
+html, body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Heebo", "Rubik", "Arial Hebrew", sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+/* צל אמביינטי רך — "כרטיס שנח על המשטח", לא צל כבד */
+.login-card,
+.app-card,
+.doc-card,
+.admin-header { box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.08); }
+
+svg {
+  width: 1.15em;
+  height: 1.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+/* ══ מסך התחברות ═══════════════════════════════════════════════════ */
+.login-view {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 32px 20px;
+}
+
+/* דמות אן (Logo_2) — קישוט בלבד; נעלמת כשאין רוחב */
+.login-figure {
+  width: 260px;
+  max-height: 78vh;
+  object-fit: contain;
+  opacity: 0.55;
+  filter: saturate(0.9);
+  align-self: flex-end;
+}
+
+.login-main {
+  width: 100%;
+  max-width: 420px;
+  animation: fade-in 0.5s ease-out both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.login-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  margin-bottom: 4px;
+}
+
+.login-title {
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.login-subtitle {
+  margin: 0 0 26px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.field label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--plum-400);
+}
+
+.field-inner { position: relative; display: flex; }
+
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-control);
+  border-radius: 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input:focus {
+  border-color: var(--coral-400);
+  box-shadow: 0 0 0 3px rgba(242, 135, 111, 0.18);
+}
+
+/* כפתור "עין" — בקצה הלוגי (שמאל ב-RTL) */
+.icon-btn {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  padding: 4px;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.icon-btn:hover { color: var(--link); }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 22px;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #fff;
+  text-decoration: none;
+  background: var(--btn-primary);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.btn-primary:hover { background: var(--btn-primary-hover); box-shadow: 0 4px 14px rgba(216, 95, 69, 0.25); }
+.btn-primary:active { transform: scale(0.985); }
+.btn-primary[disabled] { opacity: 0.6; cursor: default; }
+
+.btn-small { min-height: 38px; padding: 0 16px; font-size: 0.9rem; }
+
+.btn-ghost {
+  min-height: 38px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: none;
+  border: 1px solid var(--border-control);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-ghost:hover { background: var(--sand-100); }
+
+/* פס שגיאה — אדום הבטיחות, אך בגוון הרך (לא צבע החירום המלא) */
+.error-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--safety-800);
+  background: var(--safety-50);
+  border: 1px solid var(--safety-200);
+  border-radius: 12px;
+  animation: fade-in 0.25s ease-out both;
+}
+
+/* אותו פס, בטון רגוע — למצב שאינו שגיאת המשתמש (התחברות שפגה) */
+.error-strip.notice {
+  color: var(--sand-800);
+  background: var(--sand-100);
+  border-color: var(--sand-400);
+}
+
+.ghost-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 22px;
+  font-size: 0.9rem;
+  color: var(--link);
+  text-decoration: none;
+}
+
+.ghost-link:hover { text-decoration: underline; }
+
+.dashed-note {
+  margin: 24px 0 0;
+  padding: 14px 16px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+}
+
+/* ══ אזור המנהל ════════════════════════════════════════════════════ */
+.admin-view { display: flex; flex-direction: column; min-height: 100vh; }
+
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.admin-titles { flex: 1; min-width: 0; }
+
+.admin-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.admin-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.email-chip {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  color: var(--plum-400);
+  background: var(--sand-100);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.admin-main {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* הודעת ה"שער הזמני" — טון קורל רך, לא אזהרה אדומה */
+.notice-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  font-size: 0.92rem;
+  color: var(--coral-800);
+  background: var(--coral-50);
+  border: 1px solid var(--coral-100);
+  border-radius: 16px;
+}
+
+.notice-card p { margin: 0; }
+
+.admin-section { display: flex; flex-direction: column; gap: 14px; }
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--plum-400);
+}
+
+.section-title::after {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 3px;
+  margin-top: 6px;
+  background: var(--coral-200);
+  border-radius: 999px;
+}
+
+/* ── כרטיסי האפליקציות ─────────────────────────────────────────── */
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.app-card,
+.doc-card {
+  display: flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: transform 0.12s, box-shadow 0.15s;
+}
+
+.app-card { flex-direction: column; gap: 12px; padding: 22px; }
+
+.app-card:hover,
+.doc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(110, 93, 115, 0.14);
+}
+
+.card-head { display: flex; align-items: center; gap: 12px; }
+
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  font-size: 1.4rem;
+  color: var(--text-accent);
+  background: var(--coral-50);
+  border-radius: 14px;
+}
+
+.doc-card .card-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  color: var(--lavender-600);
+  background: var(--lavender-50);
+}
+
+.card-title { margin: 0; font-size: 1.05rem; font-weight: 700; }
+
+.card-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.status-chip {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.status-chip.up {
+  color: var(--sage-800);
+  background: var(--sage-50);
+  border: 1px solid var(--sage-200);
+}
+
+.status-chip.down {
+  color: var(--sand-800);
+  background: var(--sand-100);
+  border: 1px solid var(--sand-400);
+}
+
+.card-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.card-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ── הכפתור העדין שבתוך הכרטיס ────────────────────────────────────
+   מחליף את שורת הפקודה + כפתור ה-CTA שהיו כאן: בכרטיס אין יותר כתובת,
+   קישור או נתיב קובץ בתצוגה — הכתובת חיה ב-href, ופקודת ההרצה עוברת
+   דרך כפתור ההעתקה (וה-tooltip שלו). העיצוב הוא של הפלטה: קורל רך על
+   רקע הכרטיס, אותה עגלוליות ואותו משקל טיפוגרפי של שאר הכרטיס — כפתור
+   שמשתלב, ולא כפתור שצועק. */
+.card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--link);
+  background: var(--coral-50);
+  border: 1px solid var(--coral-100);
+  border-radius: 999px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, transform 0.12s;
+}
+
+.card-btn:hover {
+  background: var(--coral-100);
+  border-color: var(--coral-200);
+  transform: translateY(-1px);
+}
+
+/* הווריאנט המשני (העתקת פקודת ההרצה) — עדין עוד יותר: רקע העמוד */
+.card-btn.ghost {
+  color: var(--text-muted);
+  background: var(--sand-50);
+  border-color: var(--border);
+}
+
+.card-btn.ghost:hover {
+  color: var(--link);
+  background: var(--sand-100);
+  border-color: var(--sand-400);
+}
+
+/* אפליקציה שאינה רצה: הכפתור נשאר פעיל (הפורט עשוי לענות בכל רגע) —
+   רק מעומעם ויזואלית. אין aria-disabled: זו הייתה הצהרה שקרית. */
+.card-btn.dim { opacity: 0.72; }
+
+/* ── כרטיסי המסמכים ────────────────────────────────────────────── */
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 16px;
+}
+
+.doc-card {
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.doc-meta {
+  margin: 0;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  direction: ltr;
+  text-align: right;
+}
+
+.doc-card .card-desc { font-size: 0.85rem; }
+
+.doc-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--link);
+  border: 1px solid var(--coral-100);
+  border-radius: 999px;
+  background: var(--coral-50);
+}
+
+.doc-card.missing { opacity: 0.55; pointer-events: none; }
+
+.doc-card.missing .doc-open {
+  color: var(--text-muted);
+  background: var(--sand-100);
+  border-color: var(--border);
+}
+
+.admin-footer {
+  margin-top: auto;
+  padding: 20px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+.loading-line {
+  padding: 20px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ── מסכים צרים ───────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .login-figure { display: none; }
+}
+
+@media (max-width: 620px) {
+  .admin-header { flex-wrap: wrap; }
+  .admin-titles { order: -1; }
+  .email-chip { font-size: 0.72rem; }
+  .apps-grid,
+  .docs-grid { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   מציג המסמכים — תצוגה אחת, רנדרר לכל סוג מסמך.
+
+   כל המסמכים מוצגים כאן בתוך הממשק ובשפת העיצוב של אן; ההורדה נשארת
+   ככפתור גיבוי קטן בכותרת. שלושת הרנדררים המובנים (צ'קליסט, מאגר הידע,
+   גלריה) בונים DOM אמיתי ולכן מקבלים סגנון מלא; html/markdown מוצגים
+   ב-iframe שהשרת מרנדר, ולכן כאן מעוצבת רק המסגרת שלהם.
+   ══════════════════════════════════════════════════════════════════ */
+.doc-view {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+}
+
+.doc-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px clamp(14px, 3vw, 28px);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.doc-titles { flex: 1; min-width: 0; }
+
+.doc-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--plum-600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.kind-chip {
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--lavender-800);
+  background: var(--lavender-50);
+  border: 1px solid var(--lavender-100);
+  white-space: nowrap;
+}
+
+.doc-body {
+  flex: 1;
+  padding: clamp(14px, 3vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.doc-lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* ── הודעה מסודרת: מסמך חסר / ריק / שגיאת טעינה ─────────────────── */
+.doc-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 720px;
+  margin: 24px auto;
+  padding: 18px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--coral-400);
+  border-radius: 16px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.doc-notice p { margin: 0; }
+.doc-notice-icon { font-size: 1.3rem; line-height: 1.3; }
+
+/* ── רנדרר html / markdown: מסגרת ה-iframe ──────────────────────── */
+.doc-frame-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.doc-frame {
+  flex: 1;
+  width: 100%;
+  min-height: calc(100vh - 160px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-surface);
+}
+
+/* ── רנדרר טקסט ─────────────────────────────────────────────────── */
+.doc-text {
+  margin: 0;
+  padding: 20px 22px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.84rem;
+  line-height: 1.75;
+  /* קובצי דרישות ותרחישים מעורבים עברית+אנגלית; LTR עם עטיפה שומר על
+     היישור של השורות שנכתבו כטקסט מונוספייס. */
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+/* ── רנדרר דרישות המערכת ────────────────────────────────────────────
+   כרטיס לכל חבילה, מקובץ לפי ייעוד. תגי הגרסה עדינים בכוונה: הם מידע
+   משני לשם החבילה ולרציונל, ולכן הם שבבים קטנים בגווני הפלטה ולא צבע
+   חזק. שמות החבילות והגרסאות הם ASCII, ולכן הם LTR בתוך עמוד RTL. */
+.req-lead {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.req-lead-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.req-env {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.req-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+
+.req-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--coral-200);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.06);
+}
+
+.req-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.req-name {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--plum-600);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.req-version {
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: var(--plum-400);
+  background: var(--sand-100);
+  border: 1px solid var(--sand-400);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* גרסה מקובעת היא החלטת תאימות (numpy<2, crewai 1.6.1) ולא ברירת מחדל
+   — ולכן היא נבדלת ויזואלית מטווח גרסאות רגיל. */
+.req-version.pinned {
+  color: var(--gold-800);
+  background: var(--gold-50);
+  border-color: var(--gold-200);
+}
+
+.req-installed {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.req-installed.no { color: var(--danger); }
+
+.req-summary {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.req-rationale {
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.req-rationale > summary {
+  cursor: pointer;
+  color: var(--link);
+  font-weight: 500;
+}
+
+.req-rationale p { margin: 8px 0 0; }
+
+/* ── רנדרר צ'קליסט (תוכנית הבדיקות) ─────────────────────────────────
+   האיור של המסך (figure): מצב התוכנית צריך להיקרא במבט אחד, ולכן
+   המספרים גדולים, הסרגל עבה, והספירה יושבת *בתוך* המקטע. כל המידות
+   ב-rem — כך שהגדלת הטקסט בפאנל הנגישות מגדילה גם אותו. */
+.plan-progress {
+  margin: 0;
+  padding: 24px 26px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 6px 24px -6px rgba(110, 93, 115, 0.12);
+}
+
+.plan-progress-title {
+  margin: 0 0 18px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.plan-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.plan-figure-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 18px;
+  background: var(--sand-50);
+  border: 1px solid var(--border);
+  border-inline-start: 5px solid var(--sand-400);
+  border-radius: 16px;
+}
+
+.plan-figure-tile.active { border-inline-start-color: var(--sage-400); }
+.plan-figure-tile.partial { border-inline-start-color: var(--gold-400); }
+.plan-figure-tile.skipped { border-inline-start-color: var(--sand-600); }
+
+.plan-figure-value {
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--plum-600);
+}
+
+.plan-figure-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.plan-figure-share { font-size: 0.82rem; color: var(--text-muted); }
+
+.progress-track {
+  display: flex;
+  height: 2rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--sand-200);
+}
+
+.progress-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.progress-seg.active { background: var(--sage-400); }
+.progress-seg.partial { background: var(--gold-400); }
+.progress-seg.skipped { background: var(--sand-600); }
+
+/* המספר בתוך המקטע: השזיף הכהה, ולא לבן. שלושת גווני הסטטוס
+   (מרווה/זהב/חול) בהירים מדי לטקסט לבן — נמדד 2.6:1 עד 2.2:1, מתחת
+   ל-4.5:1 הנדרש; השזיף-800 נותן 5.6:1 עד 7.3:1 על שלושתם. */
+.progress-seg-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--plum-800);
+  padding: 0 4px;
+}
+
+.progress-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 14px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.legend-item { display: flex; align-items: center; gap: 7px; }
+
+.legend-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.legend-item.active .legend-dot { background: var(--sage-400); }
+.legend-item.partial .legend-dot { background: var(--gold-400); }
+.legend-item.skipped .legend-dot { background: var(--sand-600); }
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 14px;
+}
+
+.plan-card {
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.06);
+}
+
+.plan-card.active { border-inline-start: 4px solid var(--sage-400); }
+.plan-card.partial { border-inline-start: 4px solid var(--gold-400); }
+.plan-card.skipped { border-inline-start: 4px solid var(--sand-600); }
+
+.plan-head { display: flex; align-items: center; gap: 10px; }
+
+.plan-number {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--sand-100);
+  color: var(--plum-400);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.plan-title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.plan-chip {
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plan-chip.active { background: var(--sage-50); color: var(--sage-800); }
+.plan-chip.partial { background: var(--gold-50); color: var(--gold-800); }
+.plan-chip.skipped { background: var(--sand-100); color: var(--sand-800); }
+
+.plan-active,
+.plan-bullets {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text-primary);
+}
+
+.plan-bullets { padding-inline-start: 20px; }
+.plan-bullets li { margin-bottom: 4px; }
+
+.plan-skip {
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: var(--sand-50);
+  border: 1px dashed var(--sand-400);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+/* ── רנדרר מאגר הידע (data/) ────────────────────────────────────── */
+.sources-totals,
+.req-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.total-tile {
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.total-tile.official { border-inline-start: 4px solid var(--sage-400); }
+.total-tile.commercial { border-inline-start: 4px solid var(--gold-400); }
+.total-tile.guide { border-inline-start: 4px solid var(--lavender-400); }
+/* אריחי הרישיונות — אותם גוונים בדיוק, לפי רמת החופש (ראה תצוגת
+   הרישיונות בתחתית הגיליון): מרווה/זהב/לבנדר/אדום-בטיחות. */
+.total-tile.ok { border-inline-start: 4px solid var(--sage-400); }
+.total-tile.warn { border-inline-start: 4px solid var(--gold-400); }
+.total-tile.unknown { border-inline-start: 4px solid var(--lavender-400); }
+.total-tile.danger { border-inline-start: 4px solid var(--safety-400); }
+
+.total-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.total-label { font-size: 0.8rem; color: var(--text-muted); }
+
+.topic-block { display: flex; flex-direction: column; gap: 12px; }
+
+.topic-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--sand-200);
+}
+
+.topic-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.topic-count { font-size: 0.8rem; color: var(--text-muted); }
+
+.sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 14px;
+}
+
+.source-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.06);
+}
+
+.source-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.source-title {
+  flex: 1;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--plum-600);
+}
+
+.source-chip {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* שלושת סוגי המקור — שלושה גוונים נפרדים מהפלטה, לא דירוג איכות */
+.source-chip.official { background: var(--sage-50); color: var(--sage-800); }
+.source-chip.commercial { background: var(--gold-50); color: var(--gold-800); }
+.source-chip.guide { background: var(--lavender-50); color: var(--lavender-800); }
+
+.source-meta {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.source-link {
+  font-size: 0.8rem;
+  color: var(--link);
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.source-link:hover { text-decoration: underline; }
+
+.source-sections summary,
+.illu-steps summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-accent);
+}
+
+.source-section { margin-top: 10px; }
+
+.source-section-title {
+  margin: 0 0 4px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--plum-400);
+}
+
+.source-section ul,
+.illu-steps ol {
+  margin: 0;
+  padding-inline-start: 20px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.source-file {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+/* ── רנדרר גלריית האיורים ───────────────────────────────────────── */
+.illu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.illu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.06);
+}
+
+.illu-card img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  background: var(--sand-50);
+  border-radius: 12px;
+}
+
+.illu-missing {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  background: var(--sand-100);
+  border: 1px dashed var(--sand-400);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.illu-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.illu-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.illu-id {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  direction: ltr;
+  unicode-bidi: embed;
+  text-align: start;
+}
+
+/* ── הגדלת איור: הכפתור בכרטיס ושכבת-העל ─────────────────────────
+   התמונה בכרטיס עטופה ב-button אמיתי (ולא ב-div עם onclick), ולכן
+   Enter ו-Space, המיקוד וסדר הטאבים מגיעים מהדפדפן ולא ממומשים כאן
+   ידנית — אותו עיקרון של שאר הפקדים בפרויקט (2.1.1). */
+.illu-zoom {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: zoom-in;
+}
+
+.illu-zoom:hover { border-color: var(--coral-200); }
+
+.illu-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 4vw, 40px);
+}
+
+.illu-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(74, 58, 79, 0.62);
+  animation: illu-fade-in 160ms ease-out;
+}
+
+.illu-lightbox-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  width: min(760px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 18px 50px -12px rgba(74, 58, 79, 0.45);
+  animation: illu-zoom-in 180ms ease-out;
+}
+
+.illu-lightbox-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.illu-lightbox-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.illu-lightbox-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: var(--sand-100);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.illu-lightbox-close:hover { background: var(--sand-200); }
+
+.illu-lightbox-close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--plum-600);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.illu-lightbox-img {
+  width: 100%;
+  max-height: 62vh;
+  object-fit: contain;
+  background: var(--sand-50);
+  border-radius: 14px;
+}
+
+.illu-lightbox-caption { margin: 0; }
+
+.illu-lightbox-steps {
+  margin: 0;
+  padding-inline-start: 20px;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text-primary);
+}
+
+.illu-lightbox-hint {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* גלילת הרקע ננעלת כל עוד השכבה פתוחה — אחרת הגלגלת מזיזה את הדף
+   שמאחורי החלון במקום את התוכן שבו. */
+body.illu-lightbox-open { overflow: hidden; }
+
+@keyframes illu-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes illu-zoom-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 2.3.3 / העדפת מערכת: מי שביקש פחות תנועה מקבל פתיחה מיידית ולא
+   אנימציה. (העדפת הפאנל — html.a11y-reduce-motion — מנוטרלת ממילא
+   בכלל הגורף שב-a11y.css; זה הענף של הגדרת מערכת ההפעלה.) */
+@media (prefers-reduced-motion: reduce) {
+  .illu-lightbox-backdrop,
+  .illu-lightbox-card { animation: none; }
+}
+
+/* פוטר מציג המסמכים — נושא את הקרדיט בכל מסכי המסמכים (כולל מסך
+   תרחישי ההדגמה, הגלריה והרישיונות). התוכן עצמו נבנה ב-web/credit.js. */
+.doc-footer {
+  padding: 4px 20px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+/* ── כרטיס מסמך: הוא כפתור עכשיו (נפתח בממשק) ולא קישור להורדה ──── */
+button.doc-card {
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+button.doc-card:disabled { cursor: default; }
+
+.section-note {
+  margin: -6px 0 0;
+  font-size: 0.83rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+@media (max-width: 620px) {
+  .doc-header { flex-wrap: wrap; }
+  .doc-titles { order: -1; width: 100%; }
+  .plan-grid,
+  .sources-grid { grid-template-columns: 1fr; }
+  .illu-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   תרחישי הדגמה — כרטיסים בלוח המנהל ובמציג המסמכים.
+   אותו רנדרר (admin.js :: renderScenarios) משרת את שני המקומות.
+   ══════════════════════════════════════════════════════════════════ */
+.scenarios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 14px;
+}
+
+.scenario-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--lavender-400);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(110, 93, 115, 0.07);
+}
+
+.scenario-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.scenario-title {
+  flex: 1;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--plum-600);
+}
+
+.scenario-doctor {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--sand-100);
+  color: var(--sand-800);
+  font-size: 0.72rem;
+  font-weight: 700;
+  direction: ltr;
+  unicode-bidi: embed;
+  white-space: nowrap;
+}
+
+.scenario-turns {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-accent);
+}
+
+.scenario-demo {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.scenario-messages summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-accent);
+}
+
+.scenario-messages ol {
+  margin: 8px 0 0;
+  padding-inline-start: 20px;
+  font-size: 0.83rem;
+  line-height: 1.75;
+  color: var(--text-primary);
+}
+
+.scenario-expect {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  background: var(--sand-50);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.scenario-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.scenario-cost {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+/* תג לשלב שאינו הודעה — כרגע "עצירה לצירוף תמונה" (await_image). */
+.scenario-step-tag {
+  display: inline-block;
+  margin-inline-start: 8px;
+  padding: 1px 8px;
+  font-size: 0.7rem;
+  color: var(--text-accent);
+  background: var(--coral-50);
+  border: 1px solid var(--coral-200);
+  border-radius: 999px;
+}
+
+.section-note code {
+  font-size: 0.78rem;
+  direction: ltr;
+  unicode-bidi: embed;
+  background: var(--sand-100);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+@media (max-width: 620px) {
+  .scenarios-grid { grid-template-columns: 1fr; }
+}
+
+/* ══ תצוגת הרישיונות והזכויות ══════════════════════════════════════════
+   ארבע רמות חופש, ארבעה גוונים — מהפלטה ולא מצבעי מערכת:
+     ok (מתירני)      → מרווה / --success
+     warn (חלש)       → זהב
+     unknown (לבדיקה) → לבנדר
+     danger (חזק)     → אדום הבטיחות, שמור בפרויקט לדגל אדום בלבד.
+   הזהות אינה נשענת על צבע לבד: לכל קטגוריה תג עם שם מלא, כמות, והסבר
+   מה משמעות הרישיון — הצבע רק מחדד את מה שכבר כתוב.
+   ══════════════════════════════════════════════════════════════════════ */
+.lic-verdict {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-inline-start: 5px solid var(--sand-400);
+}
+
+.lic-verdict h3 { margin: 0 0 6px; font-size: 1.05rem; color: var(--plum-600); }
+.lic-verdict p { margin: 0; line-height: 1.7; }
+.lic-verdict.ok { border-inline-start-color: var(--sage-400); }
+.lic-verdict.warn { border-inline-start-color: var(--gold-400); }
+.lic-verdict.unknown { border-inline-start-color: var(--lavender-400); }
+.lic-verdict.danger { border-inline-start-color: var(--safety-400); }
+
+.lic-env {
+  margin-top: 8px !important;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.lic-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 18px 0 6px;
+}
+
+.lic-block {
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.lic-block-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.lic-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lic-chip.ok { background: var(--sage-50); color: var(--sage-800); border: 1px solid var(--sage-200); }
+.lic-chip.warn { background: var(--gold-50); color: var(--gold-800); border: 1px solid var(--gold-200); }
+.lic-chip.unknown { background: var(--lavender-50); color: var(--lavender-800); border: 1px solid var(--lavender-200); }
+.lic-chip.danger { background: var(--safety-50); color: var(--safety-800); border: 1px solid var(--safety-200); }
+
+.lic-examples {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.lic-count {
+  margin-inline-start: auto;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-accent);
+}
+
+.lic-meaning {
+  margin: 10px 0 0;
+  font-size: 0.86rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.lic-empty { margin: 10px 0 0; font-size: 0.85rem; color: var(--sage-800); }
+
+.lic-details { margin-top: 12px; }
+.lic-details summary { cursor: pointer; font-size: 0.85rem; color: var(--link); }
+
+.lic-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.lic-row {
+  padding: 10px 12px;
+  background: var(--sand-50);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.lic-row.strong_copyleft { border-inline-start: 4px solid var(--safety-400); }
+.lic-row.unknown { border-inline-start: 4px solid var(--lavender-400); }
+.lic-row.weak_copyleft { border-inline-start: 4px solid var(--gold-400); }
+.lic-row.permissive { border-inline-start: 4px solid var(--sage-200); }
+
+.lic-row-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+
+.lic-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+.lic-version { font-size: 0.74rem; color: var(--text-muted); direction: ltr; }
+
+.lic-flag {
+  font-size: 0.68rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--coral-50);
+  color: var(--coral-800);
+  border: 1px solid var(--coral-100);
+}
+
+.lic-license {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  direction: ltr;
+  unicode-bidi: embed;
+  word-break: break-word;
+}
+
+.lic-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--lavender-800);
+}
+
+.lic-content { margin-top: 22px; }
+
+.lic-section-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: var(--plum-600);
+}
+
+.lic-content-card {
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--sand-400);
+  border-radius: 16px;
+}
+
+.lic-content-card.ok { border-inline-start-color: var(--sage-400); }
+.lic-content-card.review { border-inline-start-color: var(--gold-400); }
+.lic-content-card h4 { margin: 0 0 8px; font-size: 0.95rem; color: var(--plum-600); }
+.lic-content-card p { margin: 0 0 6px; font-size: 0.86rem; line-height: 1.7; }
+
+.lic-evidence { color: var(--text-muted); }
+.lic-breakdown { color: var(--text-muted); font-size: 0.8rem !important; }
+
+.lic-disclaimer {
+  margin-top: 22px;
+  padding: 14px 16px;
+  background: var(--sand-100);
+  border: 1px dashed var(--sand-400);
+  border-radius: 14px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: var(--sand-800);
+}
+
+/* שורה שרישיונה אומת ידנית (המטא-דאטה שתקה) — נבדלת חזותית מרישיון
+   שהחבילה הצהירה עליו, כדי שההבדל לא ייעלם. */
+.lic-row.verified { border-inline-start-style: dashed; }
+
+.lic-flag.verified {
+  background: var(--lavender-50);
+  color: var(--lavender-800);
+  border-color: var(--lavender-200);
+}
+
+.lic-source {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.74rem;
+  color: var(--link);
+}
+
+/* על מה הסיווג נשען — דרגות ההצהרה */
+.lic-quality {
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.lic-quality-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lic-quality-item {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  background: var(--sand-50);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.lic-quality-item strong { color: var(--text-accent); }
+.lic-quality-item.free_text { background: var(--gold-50); border-color: var(--gold-200); }
+.lic-quality-item.verified { background: var(--lavender-50); border-color: var(--lavender-200); }
+.lic-quality-item.none { background: var(--safety-50); border-color: var(--safety-200); }
+
+.lic-declaration {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.admin-nav { display: flex; align-items: center; gap: 10px; }

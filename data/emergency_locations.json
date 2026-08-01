@@ -1,0 +1,3207 @@
+{
+  "_meta": {
+    "description": "מאגר יעדי חירום ורפואה דחופה לשימוש סוכן הבטיחות (Dr. Dexter). הנתונים סטטיים ומתעדכנים ידנית — בזמן שיחה אין שום קריאת רשת: ההפניה נבנית מהקובץ הזה בלבד (crew/emergency_referral.py).",
+    "last_updated": "2026-08-01",
+    "disclaimer": "המידע נאסף ממקורות פומביים ועשוי להשתנות. שעות פתיחה וכתובות יש לאמת טלפונית לפני הגעה. במצב חירום מיידי — 101.",
+    "verification_legend": {
+      "verified": "כל השדות (עיר, כתובת, טלפון ושעות לכל שבעת הימים) נאספו מהעמוד הרשמי",
+      "needs_verification": "חסר שדה או שהאתר אינו מפרסם שעות לחלק מהימים — יש לאמת טלפונית"
+    },
+    "official_sources": {
+      "terem": "https://www.terem.com/מוקדים/",
+      "bikur_rofe": "https://www.bikurofe.co.il/",
+      "hospitals": "https://www.gov.il/he/departments/ministry_of_health",
+      "mda": "https://www.mdais.org/"
+    },
+    "geocoding": {
+      "service": "Open-Meteo Geocoding API (tools/location.py)",
+      "precision": "יישוב",
+      "note": "הקואורדינטות הן של היישוב, לא של הכתובת המדויקת — שירות הגיאוקודינג הוא מאגר יישובים. הכתובת המלאה של כל רשומה מוצגת כטקסט מהמקור הרשמי.",
+      "script": "geocode_emergency_locations.py",
+      "records_with_coords": 60,
+      "records_total": 64
+    },
+    "collection": {
+      "method": "סניפי טרם וביקור רופא נאספו מהעמוד הרשמי של כל סניף באתרי הרשתות (טרם: ה-API הפומבי של האתר, wp/v2/clinic, ומעמוד כל מוקד; ביקור רופא: עמוד הסניף עצמו). שם, עיר, כתובת, טלפון ושעות פעילות הועתקו כלשונם.",
+      "collected_at": "2026-08-01",
+      "manual_fixes": "שלושה סניפים שבהם הטקסט באתר ברור אך אינו ניתן לפירוק מכני (ביקור רופא כרמיאל — 'סגור' ביום שישי; קרית שמונה — רצף משישי עד ראשון; מצפה רמון — תווית יום שבורה) תוקנו ידנית לפי הציטוט המופיע ב-hours.raw_he.",
+      "not_collected": "כתובות בתי החולים לא נאספו (מחוץ להיקף העדכון) ונשארו null; טלפון ישיר לסניפי טרם אינו מתפרסם באתר — כולם מפנים למוקד הארצי."
+    },
+    "hours_format": "by_day הוא מקור האמת למנוע (מפתחות sun..sat): {open, close} = פתוח בטווח, {closed: true} = סגור מפורשות, null = לא פורסם ולכן לא ידוע (אינו 'סגור'). close קטן מ-open פירושו משמרת שנמשכת אל תוך הלילה. sun_thu/fri/sat נשמרו ממבנה ה-TEMPLATE ומולאו רק כשטווח אחד חל על כל הבוקט; raw_he הוא הטקסט המקורי מהאתר, והוא מה שמוצג לאדם."
+  },
+  "national": {
+    "emergency_ambulance": {
+      "name": "מגן דוד אדום",
+      "phone": "101",
+      "note": "חירום מיידי — הפניה ראשונה בכל דגל אדום קריטי",
+      "available": "24/7",
+      "status": "verified"
+    },
+    "mental_health_hotline": {
+      "name": "ער\"ן — עזרה ראשונה נפשית",
+      "phone": "1201",
+      "note": "מצוקה נפשית, מחשבות פגיעה עצמית",
+      "available": "24/7",
+      "status": "verified"
+    },
+    "health_funds": [
+      {
+        "name": "כללית",
+        "emergency_phone": "*2700",
+        "alt_phone": "03-9405350",
+        "status": "verified"
+      },
+      {
+        "name": "מכבי",
+        "emergency_phone": "*3555",
+        "alt_phone": null,
+        "note": "מוקד מכבי ללא הפסקה",
+        "status": "verified"
+      },
+      {
+        "name": "מאוחדת",
+        "emergency_phone": "*3833",
+        "alt_phone": "1-222-3833",
+        "status": "verified"
+      },
+      {
+        "name": "לאומית",
+        "emergency_phone": "*507",
+        "alt_phone": "1-700-507-507",
+        "status": "verified"
+      }
+    ],
+    "urgent_care_chains": [
+      {
+        "chain": "טרם",
+        "central_phone": "1-599-520-520",
+        "website": "https://www.terem.com/מוקדים/",
+        "branches_count_declared": 27,
+        "coverage": "מנהריה בצפון ועד אילת בדרום",
+        "status": "verified",
+        "branches_in_file": 27
+      },
+      {
+        "chain": "ביקור רופא",
+        "central_phone": "*6101",
+        "website": "https://www.bikurofe.co.il/",
+        "branches_count_declared": 23,
+        "coverage": "מקצרין וקרית שמונה בצפון ועד אילת בדרום",
+        "status": "verified",
+        "branches_in_file": 23
+      }
+    ]
+  },
+  "hospitals": [
+    {
+      "id": "ichilov",
+      "name": "המרכז הרפואי סוראסקי (איכילוב)",
+      "city": "תל אביב",
+      "address": null,
+      "er_phone": "1255-133",
+      "lat": 32.08088,
+      "lon": 34.78057,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "תל אביב"
+    },
+    {
+      "id": "sheba",
+      "name": "המרכז הרפואי שיבא (תל השומר)",
+      "city": "רמת גן",
+      "address": null,
+      "er_phone": "1255-131",
+      "lat": 32.08227,
+      "lon": 34.81065,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "רמת גן"
+    },
+    {
+      "id": "wolfson",
+      "name": "המרכז הרפואי וולפסון",
+      "city": "חולון",
+      "address": null,
+      "er_phone": "1255-135",
+      "lat": 32.01034,
+      "lon": 34.77918,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "חולון"
+    },
+    {
+      "id": "beilinson",
+      "name": "בית החולים בילינסון (רבין)",
+      "city": "פתח תקווה",
+      "address": null,
+      "er_phone": "1255-134",
+      "lat": 32.08707,
+      "lon": 34.88747,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "פתח תקווה"
+    },
+    {
+      "id": "shamir",
+      "name": "המרכז הרפואי שמיר (אסף הרופא)",
+      "city": "באר יעקב",
+      "address": null,
+      "er_phone": "1255-188",
+      "lat": 31.93864,
+      "lon": 34.83749,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "באר יעקב"
+    },
+    {
+      "id": "kaplan",
+      "name": "המרכז הרפואי קפלן",
+      "city": "רחובות",
+      "address": null,
+      "er_phone": "1255-181",
+      "lat": 31.89421,
+      "lon": 34.81199,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "רחובות"
+    },
+    {
+      "id": "assuta_ash",
+      "name": "אסותא אשדוד (ציבורי)",
+      "city": "אשדוד",
+      "address": null,
+      "er_phone": "1255-182",
+      "lat": 31.79213,
+      "lon": 34.64966,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "אשדוד"
+    },
+    {
+      "id": "barzilai",
+      "name": "המרכז הרפואי ברזילי",
+      "city": "אשקלון",
+      "address": null,
+      "er_phone": "1255-171",
+      "lat": 31.66926,
+      "lon": 34.57149,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "אשקלון"
+    },
+    {
+      "id": "soroka",
+      "name": "המרכז הרפואי סורוקה",
+      "city": "באר שבע",
+      "address": null,
+      "er_phone": "1255-177",
+      "lat": 31.25181,
+      "lon": 34.7913,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "באר שבע"
+    },
+    {
+      "id": "hadassah_ek",
+      "name": "הדסה עין כרם",
+      "city": "ירושלים",
+      "address": null,
+      "er_phone": "1255-122",
+      "lat": 31.76904,
+      "lon": 35.21633,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "ירושלים"
+    },
+    {
+      "id": "shaare_z",
+      "name": "המרכז הרפואי שערי צדק",
+      "city": "ירושלים",
+      "address": null,
+      "er_phone": "02-5645024",
+      "lat": 31.76904,
+      "lon": 35.21633,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "ירושלים"
+    },
+    {
+      "id": "rambam",
+      "name": "המרכז הרפואי רמב\"ם",
+      "city": "חיפה",
+      "address": null,
+      "er_phone": "1255-144",
+      "lat": 32.81303,
+      "lon": 34.99928,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "חיפה"
+    },
+    {
+      "id": "bnai_zion",
+      "name": "המרכז הרפואי בני ציון",
+      "city": "חיפה",
+      "address": null,
+      "er_phone": "1255-145",
+      "lat": 32.81303,
+      "lon": 34.99928,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "חיפה"
+    },
+    {
+      "id": "hillel_yaffe",
+      "name": "בית החולים הלל יפה",
+      "city": "חדרה",
+      "address": null,
+      "er_phone": "1255-166",
+      "lat": 32.44192,
+      "lon": 34.9039,
+      "has_er": true,
+      "status": "needs_verification",
+      "coords_query": "חדרה"
+    }
+  ],
+  "urgent_care_branches": [
+    {
+      "id": "terem_katzrin",
+      "chain": "טרם",
+      "name": "טרם — קצרין",
+      "city": "קצרין",
+      "address": "שיאון 4, קצרין",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": null,
+      "lon": null,
+      "hours": {
+        "sun_thu": {
+          "open": "19:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "14:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א'- ה' 19:00-00:00 · יום ו' 14:00-00:00 · יום ש' 09:00-00:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a7%d7%a6%d7%a8%d7%99%d7%9f/",
+      "status": "verified"
+    },
+    {
+      "id": "terem_rehovot",
+      "chain": "טרם",
+      "name": "טרם — רחובות",
+      "city": "רחובות",
+      "address": "דרך ירושלים 2, מרכז שרונה, רחובות",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.89421,
+      "lon": 34.81199,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:30"
+          }
+        },
+        "raw_he": "ימים א'-ה' 09:00-23:30 · יום ו׳ 09:00-23:30 · יום ש' 09:00-23:30",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa/",
+      "status": "verified",
+      "coords_query": "רחובות"
+    },
+    {
+      "id": "terem_mitzpe_ramon",
+      "chain": "טרם",
+      "name": "טרם — מצפה רמון",
+      "city": "מצפה רמון",
+      "address": "נחל חווה 1 מצפה רמון",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 30.60944,
+      "lon": 34.80111,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "19:00",
+          "close": "22:00"
+        },
+        "sat": {
+          "open": "10:00",
+          "close": "17:00"
+        },
+        "by_day": {
+          "sun": null,
+          "mon": null,
+          "tue": null,
+          "wed": null,
+          "thu": null,
+          "fri": {
+            "open": "19:00",
+            "close": "22:00"
+          },
+          "sat": {
+            "open": "10:00",
+            "close": "17:00"
+          }
+        },
+        "raw_he": "יום ו׳ 19:00-22:00 · יום ש׳ 10:00-17:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%9e%d7%a6%d7%a4%d7%94-%d7%a8%d7%9e%d7%95%d7%9f/",
+      "status": "needs_verification",
+      "coords_query": "מצפה רמון"
+    },
+    {
+      "id": "terem_sderot",
+      "chain": "טרם",
+      "name": "טרם — שדרות",
+      "city": "שדרות",
+      "address": "הפלדה 2, שדרות",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.525,
+      "lon": 34.59693,
+      "hours": {
+        "sun_thu": {
+          "open": "16:00",
+          "close": "07:00"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "07:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "07:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "16:00",
+            "close": "07:00"
+          },
+          "mon": {
+            "open": "16:00",
+            "close": "07:00"
+          },
+          "tue": {
+            "open": "16:00",
+            "close": "07:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "07:00"
+          },
+          "thu": {
+            "open": "16:00",
+            "close": "07:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "07:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "07:00"
+          }
+        },
+        "raw_he": "ימים א'-ה' 16:00-07:00 · יום ו׳ 09:00-07:00 · יום ש' 09:00-07:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a9%d7%93%d7%a8%d7%95%d7%aa/",
+      "status": "verified",
+      "coords_query": "שדרות"
+    },
+    {
+      "id": "terem_jerusalem_romema",
+      "chain": "טרם",
+      "name": "טרם — רוממה שרי ישראל",
+      "city": "ירושלים",
+      "address": "שדרות שרי ישראל 15. פינת יפו, ירושלים",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.76904,
+      "lon": 35.21633,
+      "hours": {
+        "sun_thu": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "00:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "7 ימים בשבוע, 24 שעות ביממה",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a8%d7%95%d7%9e%d7%9e%d7%94-%d7%a9%d7%a8%d7%99-%d7%99%d7%a9%d7%a8%d7%90%d7%9c/",
+      "status": "verified",
+      "coords_query": "ירושלים"
+    },
+    {
+      "id": "terem_rosh_haayin",
+      "chain": "טרם",
+      "name": "טרם — ראש העין",
+      "city": "ראש העין",
+      "address": "העבודה 14, ראש העין",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 32.09556,
+      "lon": 34.95664,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "08:00",
+          "close": "23:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "08:00",
+            "close": "23:30"
+          }
+        },
+        "raw_he": "ימים א'- ה' 09:00-23:30 · יום ו' 09:00-23:30 · יום ש' 08:00-23:30",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a8%d7%90%d7%a9-%d7%94%d7%a2%d7%99%d7%9f/",
+      "status": "verified",
+      "coords_query": "Rosh HaAyin"
+    },
+    {
+      "id": "terem_kiryat_malachi",
+      "chain": "טרם",
+      "name": "טרם — קריית מלאכי",
+      "city": "קריית מלאכי",
+      "address": "רחוב זבוטינסקי 20 (מאחורי בניין העירייה), קריית מלאכי",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.72888,
+      "lon": 34.74632,
+      "hours": {
+        "sun_thu": {
+          "open": "18:00",
+          "close": "06:00"
+        },
+        "fri": {
+          "open": "12:00",
+          "close": "06:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "06:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "18:00",
+            "close": "06:00"
+          },
+          "mon": {
+            "open": "18:00",
+            "close": "06:00"
+          },
+          "tue": {
+            "open": "18:00",
+            "close": "06:00"
+          },
+          "wed": {
+            "open": "18:00",
+            "close": "06:00"
+          },
+          "thu": {
+            "open": "18:00",
+            "close": "06:00"
+          },
+          "fri": {
+            "open": "12:00",
+            "close": "06:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "06:00"
+          }
+        },
+        "raw_he": "ימים א'-ה' 18:00-06:00 · יום ו׳ 12:00-06:00 · יום ש' 09:00-06:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a7%d7%a8%d7%99%d7%99%d7%aa-%d7%9e%d7%9c%d7%90%d7%9b%d7%99/",
+      "status": "verified",
+      "coords_query": "קריית מלאכי"
+    },
+    {
+      "id": "terem_kiryat_gat",
+      "chain": "טרם",
+      "name": "טרם — קריית גת",
+      "city": "קריית גת",
+      "address": "רחוב חשוון 10, קריית גת",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.60998,
+      "lon": 34.76422,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "05:45"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "05:45"
+        },
+        "sat": {
+          "open": "08:00",
+          "close": "05:45"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "05:45"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "05:45"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "05:45"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "05:45"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "05:45"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "05:45"
+          },
+          "sat": {
+            "open": "08:00",
+            "close": "05:45"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 09:00-05:45 · יום ו' 09:00-05:45 · יום ש' 08:00-05:45",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a7%d7%a8%d7%99%d7%99%d7%aa-%d7%92%d7%aa/",
+      "status": "verified",
+      "coords_query": "קריית גת"
+    },
+    {
+      "id": "terem_kiryat_bialik",
+      "chain": "טרם",
+      "name": "טרם — קריית ביאליק",
+      "city": "קרית ביאליק",
+      "address": "דרך עכו 22, קרית ביאליק (במבנה של קופח חולים לאומית קומה 2)",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 32.8275,
+      "lon": 35.08583,
+      "hours": {
+        "sun_thu": {
+          "open": "19:30",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "15:00",
+          "close": "21:00"
+        },
+        "sat": {
+          "open": "17:00",
+          "close": "23:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:30",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "19:30",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "19:30",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "19:30",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "19:30",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "15:00",
+            "close": "21:00"
+          },
+          "sat": {
+            "open": "17:00",
+            "close": "23:00"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 19:30-23:30 · יום ו׳ 15:00-21:00 · יום ש׳ 17:00-23:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a7%d7%a8%d7%99%d7%99%d7%aa-%d7%91%d7%99%d7%90%d7%9c%d7%99%d7%a7/",
+      "status": "verified",
+      "coords_query": "קריית ביאליק"
+    },
+    {
+      "id": "terem_petah_tikva",
+      "chain": "טרם",
+      "name": "טרם — פתח תקווה",
+      "city": "פתח תקווה",
+      "address": "רוטשילד 182, פתח תקווה (מעל הסופר פארם)",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 32.08707,
+      "lon": 34.88747,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:30"
+          }
+        },
+        "raw_he": "ימים א'-ה' 09:00-23:30 · יום ו' 09:00-23:30 · יום ש' 09:00-23:30",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a4%d7%aa%d7%97-%d7%aa%d7%a7%d7%95%d7%95%d7%94/",
+      "status": "verified",
+      "coords_query": "פתח תקווה"
+    },
+    {
+      "id": "terem_jerusalem_pisgat_zeev",
+      "chain": "טרם",
+      "name": "טרם — פסגת זאב",
+      "city": "ירושלים",
+      "address": "משה דיין, פסגת זאב 158 ירושלים",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.76904,
+      "lon": 35.21633,
+      "hours": {
+        "sun_thu": {
+          "open": "16:00",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "16:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "16:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "16:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "16:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:30"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 16:00-23:30 · יום ו׳ 09:00-23:30 · יום ש׳ 09:00-23:30",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a4%d7%a1%d7%92%d7%aa-%d7%96%d7%90%d7%91/",
+      "status": "verified",
+      "coords_query": "ירושלים"
+    },
+    {
+      "id": "terem_netanya",
+      "chain": "טרם",
+      "name": "טרם — נתניה",
+      "city": "נתניה",
+      "address": "יהושע שטמפפר 17, נתניה (בתוך קופת חולים לאומית, קומה 3)",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 32.33291,
+      "lon": 34.85992,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "13:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "19:30",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "13:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א'+ב+ה' 19:00-00:00 · יום ג' 19:30-00:00 · יום ד' 16:00-00:00 · יום ו' 13:00-00:00 · יום ש' 09:00-00:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a0%d7%aa%d7%a0%d7%99%d7%94/",
+      "status": "verified",
+      "coords_query": "נתניה"
+    },
+    {
+      "id": "terem_nahariya",
+      "chain": "טרם",
+      "name": "טרם — נהריה",
+      "city": "נהריה",
+      "address": "גדוד 21 נהריה",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 33.00892,
+      "lon": 35.09814,
+      "hours": {
+        "sun_thu": {
+          "open": "16:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "08:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "08:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 16:00-00:00 · יום ו׳ 09:00-00:00 · יום ש׳ 08:00-00:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%a0%d7%94%d7%a8%d7%99%d7%94/",
+      "status": "verified",
+      "coords_query": "Nahariya"
+    },
+    {
+      "id": "terem_maale_adumim",
+      "chain": "טרם",
+      "name": "טרם — מעלה אדומים",
+      "city": "מעלה אדומים",
+      "address": "האשל 68, מעלה אדומים",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.78367,
+      "lon": 35.23963,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "08:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "08:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 09:00-23:30 · יום ו׳ 08:00-23:30 · יום ש׳ 09:00-00:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%9e%d7%a2%d7%9c%d7%94-%d7%90%d7%93%d7%95%d7%9e%d7%99%d7%9d/",
+      "status": "verified",
+      "coords_query": "Ma'ale Adumim"
+    },
+    {
+      "id": "terem_modiin_illit",
+      "chain": "טרם",
+      "name": "טרם — מודיעין עילית",
+      "city": "מודיעין עילית",
+      "address": "אבני נזר 46 מודיעין עילית (מרכז קסם, קומה 2)",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": null,
+      "lon": null,
+      "hours": {
+        "sun_thu": {
+          "open": "17:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "10:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "10:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א'- ה' 17:00-00:00 · יום ו' 09:00-00:00 · יום ש' 10:00-00:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%9e%d7%95%d7%93%d7%99%d7%a2%d7%99%d7%9f-%d7%a2%d7%99%d7%9c%d7%99%d7%aa/",
+      "status": "verified"
+    },
+    {
+      "id": "terem_modiin",
+      "chain": "טרם",
+      "name": "טרם — מודיעין",
+      "city": "מודיעין",
+      "address": "תלתן 8 מודיעין",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.89385,
+      "lon": 35.01504,
+      "hours": {
+        "sun_thu": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "00:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "7 ימים בשבוע, 24 שעות ביממה",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%9e%d7%95%d7%93%d7%99%d7%a2%d7%99%d7%9f/",
+      "status": "verified",
+      "coords_query": "מודיעין"
+    },
+    {
+      "id": "terem_lod",
+      "chain": "טרם",
+      "name": "טרם — לוד",
+      "city": "לוד",
+      "address": "שדרות דוד המלך 2, לוד",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.9467,
+      "lon": 34.8903,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:30"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 09:00-23:30 · יום ו׳ 09:00-23:30 · יום ש׳ 09:00-23:30",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%9c%d7%95%d7%93/",
+      "status": "verified",
+      "coords_query": "לוד"
+    },
+    {
+      "id": "terem_carmiel",
+      "chain": "טרם",
+      "name": "טרם — כרמיאל",
+      "city": "כרמיאל",
+      "address": "היוצרים 15, כרמיאל",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 32.90951,
+      "lon": 35.29768,
+      "hours": {
+        "sun_thu": {
+          "open": "08:00",
+          "close": "01:00"
+        },
+        "fri": {
+          "open": "08:00",
+          "close": "01:00"
+        },
+        "sat": {
+          "open": "08:00",
+          "close": "01:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "08:00",
+            "close": "01:00"
+          },
+          "mon": {
+            "open": "08:00",
+            "close": "01:00"
+          },
+          "tue": {
+            "open": "08:00",
+            "close": "01:00"
+          },
+          "wed": {
+            "open": "08:00",
+            "close": "01:00"
+          },
+          "thu": {
+            "open": "08:00",
+            "close": "01:00"
+          },
+          "fri": {
+            "open": "08:00",
+            "close": "01:00"
+          },
+          "sat": {
+            "open": "08:00",
+            "close": "01:00"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 08:00-01:00 · יום ו׳ 08:00-01:00 · יום ש׳ 08:00-01:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%9b%d7%a8%d7%9e%d7%99%d7%90%d7%9c/",
+      "status": "verified",
+      "coords_query": "כרמיאל"
+    },
+    {
+      "id": "terem_yavne",
+      "chain": "טרם",
+      "name": "טרם — יבנה",
+      "city": "יבנה",
+      "address": "המיסב 7 ( קומה 1) - מרכז עזריאל, יבנה",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.87808,
+      "lon": 34.73983,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "23:45"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "23:45"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:45"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "23:45"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "23:45"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "23:45"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "23:45"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "23:45"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "23:45"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:45"
+          }
+        },
+        "raw_he": "ימים א'-ה' 09:00-23:45 · יום ו׳ 09:00-23:45 · יום ש׳ 09:00-23:45",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%99%d7%91%d7%a0%d7%94/",
+      "status": "verified",
+      "coords_query": "יבנה"
+    },
+    {
+      "id": "terem_jerusalem_tayelet",
+      "chain": "טרם",
+      "name": "טרם — טיילת",
+      "city": "ירושלים",
+      "address": "דניאל ינובסקי 6, ירושלים",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.76904,
+      "lon": 35.21633,
+      "hours": {
+        "sun_thu": {
+          "open": "08:30",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "08:30",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "08:30",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "08:30",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "08:30",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "08:30",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "08:30",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "08:30",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "08:30",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "08:30",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א'- ה' 08:30-00:00 · יום ו' 08:30-00:00 · יום ש' 08:30-00:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%98%d7%99%d7%99%d7%9c%d7%aa/",
+      "status": "verified",
+      "coords_query": "ירושלים"
+    },
+    {
+      "id": "terem_beitar_illit",
+      "chain": "טרם",
+      "name": "טרם — ביתר עילית",
+      "city": "ביתר עילית",
+      "address": "אלעזר המודעי 1, ביתר עלית",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": null,
+      "lon": null,
+      "hours": {
+        "sun_thu": {
+          "open": "19:00",
+          "close": "06:00"
+        },
+        "fri": {
+          "open": "15:00",
+          "close": "06:00"
+        },
+        "sat": null,
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "06:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "06:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "06:00"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "06:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "06:00"
+          },
+          "fri": {
+            "open": "15:00",
+            "close": "06:00"
+          },
+          "sat": null
+        },
+        "raw_he": "ימים א׳ - ה׳ 19:00-06:00 · יום ו׳ 15:00-06:00 · יום ש׳ 06:00-06:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%91%d7%99%d7%aa%d7%a8-%d7%a2%d7%99%d7%9c%d7%99%d7%aa/",
+      "status": "needs_verification"
+    },
+    {
+      "id": "terem_beit_shemesh",
+      "chain": "טרם",
+      "name": "טרם — בית שמש",
+      "city": "בית שמש",
+      "address": "שד' יגאל אלון 1, בית שמש (קומה 5, מרכז ביג)",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.73072,
+      "lon": 34.99293,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "06:00"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "06:00"
+        },
+        "sat": {
+          "open": "08:00",
+          "close": "06:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "06:00"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "06:00"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "06:00"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "06:00"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "06:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "06:00"
+          },
+          "sat": {
+            "open": "08:00",
+            "close": "06:00"
+          }
+        },
+        "raw_he": "ימים א'- ו' 09:00-06:00 · יום ש' 08:00-06:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%91%d7%99%d7%aa-%d7%a9%d7%9e%d7%a9/",
+      "status": "verified",
+      "coords_query": "בית שמש"
+    },
+    {
+      "id": "terem_beer_sheva",
+      "chain": "טרם",
+      "name": "טרם — באר שבע",
+      "city": "באר שבע",
+      "address": "נורדאו 1, באר שבע",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.25181,
+      "lon": 34.7913,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "00:30"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "00:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "00:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "00:30"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 09:00-00:30 · יום ו׳ 09:00-00:30 · יום ש׳ 09:00-00:30",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%91%d7%90%d7%a8-%d7%a9%d7%91%d7%a2/",
+      "status": "verified",
+      "coords_query": "באר שבע"
+    },
+    {
+      "id": "terem_ashkelon",
+      "chain": "טרם",
+      "name": "טרם — אשקלון",
+      "city": "אשקלון",
+      "address": "הפלמ״ח 3, אשקלון",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.66926,
+      "lon": 34.57149,
+      "hours": {
+        "sun_thu": {
+          "open": "09:00",
+          "close": "00:30"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "00:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "00:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "mon": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "tue": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "wed": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "thu": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "00:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "00:30"
+          }
+        },
+        "raw_he": "ימים א׳ - ה׳ 09:00-00:30 · יום ו׳ 09:00-00:30 · יום ש׳ 09:00-00:30",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f/",
+      "status": "verified",
+      "coords_query": "אשקלון"
+    },
+    {
+      "id": "terem_ashdod",
+      "chain": "טרם",
+      "name": "טרם — אשדוד",
+      "city": "אשדוד",
+      "address": "חנה סנש 1, אשדוד",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 31.79213,
+      "lon": 34.64966,
+      "hours": {
+        "sun_thu": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "00:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "7 ימים בשבוע, 24 שעות ביממה",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%90%d7%a9%d7%93%d7%95%d7%93/",
+      "status": "verified",
+      "coords_query": "אשדוד"
+    },
+    {
+      "id": "terem_bnei_brak",
+      "chain": "טרם",
+      "name": "טרם — בני ברק איכילוב",
+      "city": "בני ברק",
+      "address": "זבוטינסקי 160, בני ברק",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 32.08074,
+      "lon": 34.8338,
+      "hours": {
+        "sun_thu": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "00:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "00:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "7 ימים בשבוע, 24 שעות ביממה",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%91%d7%a0%d7%99-%d7%91%d7%a8%d7%a7-%d7%90%d7%99%d7%9b%d7%99%d7%9c%d7%95%d7%91/",
+      "status": "verified",
+      "coords_query": "בני ברק"
+    },
+    {
+      "id": "terem_eilat",
+      "chain": "טרם",
+      "name": "טרם — אילת",
+      "city": "אילת",
+      "address": "רחוב קאמן 2 - טיילת המאגיק פאלאס, אילת",
+      "phone": "1-599-520-520",
+      "phone_is_central": true,
+      "lat": 29.55805,
+      "lon": 34.94821,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "12:00",
+          "close": "23:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "13:00",
+            "close": "23:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "23:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "23:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "23:00"
+          },
+          "thu": {
+            "open": "16:00",
+            "close": "23:00"
+          },
+          "fri": {
+            "open": "12:00",
+            "close": "23:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:00"
+          }
+        },
+        "raw_he": "יום א' 13:00-23:00 · ימים ב', ג', ד' 17:00-23:00 · יום ה' 16:00-23:00 · יום ו' 12:00-23:00 · יום ש' 09:00-23:00",
+        "note": null
+      },
+      "source_url": "https://www.terem.com/clinic/%d7%9e%d7%95%d7%a7%d7%93-%d7%98%d7%a8%d7%9d-%d7%90%d7%99%d7%9c%d7%aa/",
+      "status": "verified",
+      "coords_query": "אילת"
+    },
+    {
+      "id": "bikur_rofe_katzrin",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — קצרין",
+      "city": "קצרין",
+      "address": "מרכז איתן, קצרין. קומה 2, מעל קופ\"ח לאומית",
+      "phone": "073-2400400",
+      "phone_is_central": false,
+      "lat": null,
+      "lon": null,
+      "hours": {
+        "sun_thu": {
+          "open": "19:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "14:00",
+          "close": "21:00"
+        },
+        "sat": {
+          "open": "17:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "21:00"
+          },
+          "sat": {
+            "open": "17:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א'-ה' 19:00-24:00 · ימי ו' וערבי חג 14:00-21:00 · שבתות וחגים 17:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/מרפאת-קצרין/",
+      "status": "verified"
+    },
+    {
+      "id": "bikur_rofe_hadera",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — חדרה",
+      "city": "חדרה",
+      "address": "צה\"ל 35 מתחם מיקס, חדרה",
+      "phone": "04-6225030",
+      "phone_is_central": false,
+      "lat": 32.44192,
+      "lon": 34.9039,
+      "hours": {
+        "sun_thu": {
+          "open": "17:30",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "14:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "יום א'-ה' 17:30-24:00 · ימי ו' וערבי חג 14:00-24:00 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3-4/",
+      "status": "verified",
+      "coords_query": "חדרה"
+    },
+    {
+      "id": "bikur_rofe_carmiel",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — כרמיאל",
+      "city": "כרמיאל",
+      "address": "קק\"ל 99/31, כרמיאל",
+      "phone": "04-9581253",
+      "phone_is_central": false,
+      "lat": 32.90951,
+      "lon": 35.29768,
+      "hours": {
+        "sun_thu": {
+          "open": "19:00",
+          "close": "23:00"
+        },
+        "fri": {
+          "closed": true
+        },
+        "sat": {
+          "open": "17:30",
+          "close": "23:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "fri": {
+            "closed": true
+          },
+          "sat": {
+            "open": "17:30",
+            "close": "23:00"
+          }
+        },
+        "raw_he": "ימי ו' וערבי חג – סגור | שבתות וחגים – 17:30 עד 23:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3-3-2-2-2-2-3/",
+      "status": "verified",
+      "coords_query": "כרמיאל"
+    },
+    {
+      "id": "bikur_rofe_afula",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — עפולה",
+      "city": "עפולה",
+      "address": "יהושע חנקין 15",
+      "phone": "04-6403348",
+      "phone_is_central": false,
+      "lat": 32.60907,
+      "lon": 35.2892,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "14:00",
+          "close": "23:00"
+        },
+        "sat": {
+          "open": "10:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "18:30",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "18:30",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "18:30",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "18:30",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "23:00"
+          },
+          "sat": {
+            "open": "10:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימי א' 17:00-24:00 · ימים ב'-ה' 18:30-24:00 · ימי ו' וערבי חג 14:00-23:00 · שבתות וחגים 10:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3-3-2-2-2-2-2/",
+      "status": "verified",
+      "coords_query": "עפולה"
+    },
+    {
+      "id": "bikur_rofe_haifa",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — חיפה",
+      "city": "חיפה",
+      "address": "שדרות בן גוריון 17, פינת רחוב המגינים",
+      "phone": "04-8507350",
+      "phone_is_central": false,
+      "lat": 32.81303,
+      "lon": 34.99928,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "14:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "יום א' 17:00-24:00 · ימים ב', ג', ה' 17:30-24:00 · יום ד' 16:00-24:00 · ימי ו' וערבי חג 14:00-24:00 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3-3-2-2-2/",
+      "status": "verified",
+      "coords_query": "חיפה"
+    },
+    {
+      "id": "bikur_rofe_nahariya",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — נהריה",
+      "city": "נהריה",
+      "address": "הרצל 77, קומה 1",
+      "phone": "04-6082811",
+      "phone_is_central": false,
+      "lat": 33.00892,
+      "lon": 35.09814,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "14:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א', ב', ג' 18:00-24:00 · יום ד' 17:00-24:00 · יום ה' 18:00-24:00 · ימי ו' וערבי חג 14:00-24:00 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3-3-2-2/",
+      "status": "verified",
+      "coords_query": "Nahariya"
+    },
+    {
+      "id": "bikur_rofe_kiryat_shmona",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — קרית שמונה",
+      "city": "קרית שמונה",
+      "address": "טשרניחובסקי 5 (בניין מד\"א)",
+      "phone": "04-8864577",
+      "phone_is_central": false,
+      "lat": 33.21204,
+      "lon": 35.57044,
+      "hours": {
+        "sun_thu": {
+          "open": "17:00",
+          "close": "08:00"
+        },
+        "fri": {
+          "open": "12:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "00:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "08:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "08:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "08:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "08:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "08:00"
+          },
+          "fri": {
+            "open": "12:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "00:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א-ה: 17:00 עד 08:00 בבוקר | ימי שישי: משעה 12:00 ברצף עד יום ראשון בשעה 8:00",
+        "note": "משישי בצהריים ועד ראשון בבוקר המוקד פעיל ברצף (לפי האתר הרשמי)."
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3-3/",
+      "status": "verified",
+      "coords_query": "קריית שמונה"
+    },
+    {
+      "id": "bikur_rofe_tveria",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — טבריה",
+      "city": "טבריה",
+      "address": "העמקים 107, טבריה",
+      "phone": "04-6107678",
+      "phone_is_central": false,
+      "lat": 32.79396,
+      "lon": 35.53152,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "14:00",
+          "close": "23:00"
+        },
+        "sat": {
+          "open": "13:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "23:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "23:00"
+          },
+          "sat": {
+            "open": "13:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "א,ב,ג,ה 19:00-23:00 · רביעי 16:00-23:00 · שישי 14:00-23:00 · שבת וחגים 13:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/מרפאת-טבריה/",
+      "status": "verified",
+      "coords_query": "טבריה"
+    },
+    {
+      "id": "bikur_rofe_telaviv",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — תל אביב",
+      "city": "תל אביב",
+      "address": "יגאל אלון 92, מרכז אשדר, כניסה ה, קומה 1",
+      "phone": "03-6272350",
+      "phone_is_central": false,
+      "lat": 32.08088,
+      "lon": 34.78057,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "13:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "13:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "יום א', ג', ה 17:00-24:00 · ימים ב', ד' 16:00-24:00 · ימי ו' וערבי חג 13:00-23:30 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-2/",
+      "status": "verified",
+      "coords_query": "תל אביב"
+    },
+    {
+      "id": "bikur_rofe_kiryat_ono",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — קריית אונו",
+      "city": "קריית אונו",
+      "address": "הדובדבן 7, קומה 3 קריית אונו",
+      "phone": "03-5178263",
+      "phone_is_central": false,
+      "lat": 32.06124,
+      "lon": 34.85618,
+      "hours": {
+        "sun_thu": {
+          "open": "17:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א-ה 17:00-24:00 · ימי ו',שבת וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kiryat-ono/",
+      "status": "verified",
+      "coords_query": "Kiryat Ono"
+    },
+    {
+      "id": "bikur_rofe_kfarsaba",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — כפר סבא",
+      "city": "כפר סבא",
+      "address": "בניין מדיקל השרון, אלי הורוביץ 12, קומה 5, כפר סבא",
+      "phone": "09-7455554",
+      "phone_is_central": false,
+      "lat": 32.175,
+      "lon": 34.90694,
+      "hours": {
+        "sun_thu": {
+          "open": "17:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "14:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "יום א'-ה' 17:00-24:00 · ימי ו' וערבי חג 14:00-24:00 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar/",
+      "status": "verified",
+      "coords_query": "כפר סבא"
+    },
+    {
+      "id": "bikur_rofe_netanya",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — נתניה",
+      "city": "נתניה",
+      "address": "רחוב גיבורי ישראל 24, קומה 2 (בניין \"בית רעים\")",
+      "phone": "09-7890803",
+      "phone_is_central": false,
+      "lat": 32.33291,
+      "lon": 34.85992,
+      "hours": {
+        "sun_thu": {
+          "open": "18:00",
+          "close": "23:30"
+        },
+        "fri": {
+          "open": "14:00",
+          "close": "22:00"
+        },
+        "sat": {
+          "open": "14:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "18:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "18:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "18:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "18:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "18:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "22:00"
+          },
+          "sat": {
+            "open": "14:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "יום א'-ה' 18:00-23:30 · ימי ו' וערבי חג 14:00-22:00 · שבתות וחגים 14:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-3/",
+      "status": "verified",
+      "coords_query": "נתניה"
+    },
+    {
+      "id": "bikur_rofe_rishon",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — ראשון לציון",
+      "city": "ראשון לציון",
+      "address": "לזרוב 33 (ליד קניון הזהב)",
+      "phone": "03-952-4607",
+      "phone_is_central": false,
+      "lat": 31.97102,
+      "lon": 34.78939,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימי א',ב', ג', ה ' 17:00-24:00 · ימי ד ' 16:00-24:00 · ימי ו' וערבי חג 09:00-24:00 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/rashlatz/",
+      "status": "verified",
+      "coords_query": "ראשון לציון"
+    },
+    {
+      "id": "bikur_rofe_ariel",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — אריאל",
+      "city": "אריאל",
+      "address": "דרך הנחשונים 69 א' - מול מכבי אש",
+      "phone": "03-7576252",
+      "phone_is_central": false,
+      "lat": 32.1065,
+      "lon": 35.18449,
+      "hours": {
+        "sun_thu": {
+          "open": "19:00",
+          "close": "23:00"
+        },
+        "fri": {
+          "open": "14:00",
+          "close": "19:00"
+        },
+        "sat": {
+          "open": "16:00",
+          "close": "23:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "19:00"
+          },
+          "sat": {
+            "open": "16:00",
+            "close": "23:00"
+          }
+        },
+        "raw_he": "ימים א'-ה' 19:00-23:00 · ימי ו' וערבי חג 14:00-19:00 · שבתות וחגים 16:00-23:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3-2/",
+      "status": "verified",
+      "coords_query": "Ariel"
+    },
+    {
+      "id": "bikur_rofe_holon",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — חולון",
+      "city": "חולון",
+      "address": "ההסתדרות 35, קומה 2",
+      "phone": "073-3244960",
+      "phone_is_central": false,
+      "lat": 32.01034,
+      "lon": 34.77918,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "13:00",
+          "close": "23:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "23:30"
+          },
+          "mon": {
+            "open": "16:00",
+            "close": "23:30"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "23:30"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "23:30"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "23:30"
+          },
+          "fri": {
+            "open": "13:00",
+            "close": "23:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:30"
+          }
+        },
+        "raw_he": "יום א', ג', ה' 19:00-23:30 · ימי ב'-ד' 16:00-23:30 · ימי שישי וערבי חג 13:00-23:30 · שבתות וחגים 09:00-23:30",
+        "note": "האתר מפרסם את אותו יום ביותר מרשומה אחת — נשמר טווח השעות הצר מביניהם."
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5/",
+      "status": "verified",
+      "coords_query": "חולון"
+    },
+    {
+      "id": "bikur_rofe_jerusalem",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — ירושלים",
+      "city": "ירושלים",
+      "address": "בית הדפוס 22, גבעת שאול",
+      "phone": "077-5540943",
+      "phone_is_central": false,
+      "lat": 31.76904,
+      "lon": 35.21633,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "09:00",
+          "close": "14:00"
+        },
+        "sat": {
+          "open": "15:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:30",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "14:00"
+          },
+          "sat": {
+            "open": "15:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "יום א' 17:00-24:00 · ימים ב'-ה' 17:30-24:00 · ימי ו' וערבי חג 09:00-14:00 · שבתות וחגים 15:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-3/",
+      "status": "verified",
+      "coords_query": "ירושלים"
+    },
+    {
+      "id": "bikur_rofe_mevaseret",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — מבשרת ציון",
+      "city": "מבשרת ציון",
+      "address": "רחוב המגרסות 1 (צור 1) בניין MBC, בניין A, קומה 2",
+      "phone": "02-5956946",
+      "phone_is_central": false,
+      "lat": 31.80186,
+      "lon": 35.15072,
+      "hours": {
+        "sun_thu": {
+          "open": "19:00",
+          "close": "23:00"
+        },
+        "fri": {
+          "open": "16:00",
+          "close": "22:00"
+        },
+        "sat": {
+          "open": "09:30",
+          "close": "23:30"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "fri": {
+            "open": "16:00",
+            "close": "22:00"
+          },
+          "sat": {
+            "open": "09:30",
+            "close": "23:30"
+          }
+        },
+        "raw_he": "ימים א-ה 19:00-23:00 · יום ו' 16:00-22:00 · שבת וחג 09:30-23:30",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-4/",
+      "status": "verified",
+      "coords_query": "מבשרת ציון"
+    },
+    {
+      "id": "bikur_rofe_modiin",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — מודיעין",
+      "city": "מודיעין",
+      "address": "יגאל ידין 41",
+      "phone": "08-9750700",
+      "phone_is_central": false,
+      "lat": 31.89385,
+      "lon": 35.01504,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "09:00",
+          "close": "14:00"
+        },
+        "sat": {
+          "open": "12:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "18:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "14:00"
+          },
+          "sat": {
+            "open": "12:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "יום א' 17:00-24:00 · ימים ב'-ה 18:00-24:00 · ימי ו' וערבי חג 9:00-14:00 · שבתות וחגים 12:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/kfar-5-2-2/",
+      "status": "verified",
+      "coords_query": "מודיעין"
+    },
+    {
+      "id": "bikur_rofe_ashdod",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — אשדוד",
+      "city": "אשדוד",
+      "address": "האורגים 18 אשדוד, קומת קרקע. אזור תעשייה הקלה",
+      "phone": "08-8665828",
+      "phone_is_central": false,
+      "lat": 31.79213,
+      "lon": 34.64966,
+      "hours": {
+        "sun_thu": {
+          "open": "17:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "14:00",
+          "close": "24:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "14:00",
+            "close": "24:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א'-ה' 17:00-24:00 · ימי ו' וערבי חג 14:00-24:00 · שבתות וחגים 9:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/מרפאת-אשדוד/",
+      "status": "verified",
+      "coords_query": "אשדוד"
+    },
+    {
+      "id": "bikur_rofe_ashkelon",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — אשקלון",
+      "city": "אשקלון",
+      "address": "העוז 1, בניין רשות המיסים",
+      "phone": "08-6728989",
+      "phone_is_central": false,
+      "lat": 31.66926,
+      "lon": 34.57149,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "09:00",
+          "close": "22:30"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "16:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "22:30"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א',ג',ה' 17:00-24:00 · ימים ב',ד' 16:00-24:00 · ימי ו' וערבי חג 09:00-22:30 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/מרפאת-אשקלון/",
+      "status": "verified",
+      "coords_query": "אשקלון"
+    },
+    {
+      "id": "bikur_rofe_beersheva",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — באר שבע",
+      "city": "באר שבע",
+      "address": "יצחק בן צבי 9, (בניין לב הסיטי)",
+      "phone": "08-6655559",
+      "phone_is_central": false,
+      "lat": 31.25181,
+      "lon": 34.7913,
+      "hours": {
+        "sun_thu": {
+          "open": "17:00",
+          "close": "24:00"
+        },
+        "fri": {
+          "open": "09:00",
+          "close": "14:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "24:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "mon": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "tue": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "wed": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "thu": {
+            "open": "17:00",
+            "close": "24:00"
+          },
+          "fri": {
+            "open": "09:00",
+            "close": "14:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "24:00"
+          }
+        },
+        "raw_he": "ימים א'-ה' 17:00-24:00 · ימי ו' וערבי חג 09:00-14:00 · שבתות וחגים 09:00-24:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/מרפאת-באר-שבע/",
+      "status": "verified",
+      "coords_query": "באר שבע"
+    },
+    {
+      "id": "bikur_rofe_mitzpe",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — מצפה רמון",
+      "city": "מצפה רמון",
+      "address": "בן גוריון 1 - מצפה רמון (מעל השופרסל)",
+      "phone": "03-6272304",
+      "phone_is_central": false,
+      "lat": 30.60944,
+      "lon": 34.80111,
+      "hours": {
+        "sun_thu": null,
+        "fri": {
+          "open": "19:00",
+          "close": "22:00"
+        },
+        "sat": {
+          "open": "10:00",
+          "close": "16:00"
+        },
+        "by_day": {
+          "sun": null,
+          "mon": null,
+          "tue": null,
+          "wed": null,
+          "thu": null,
+          "fri": {
+            "open": "19:00",
+            "close": "22:00"
+          },
+          "sat": {
+            "open": "10:00",
+            "close": "16:00"
+          }
+        },
+        "raw_he": "ימי ו' וערבי חג – 19:00 עד 22:00 | שבתות וחגים – 10:00 עד 16:00",
+        "note": "האתר הרשמי אינו מפרסם שעות לימים א'-ה' — יש לברר טלפונית."
+      },
+      "source_url": "https://www.bikurofe.co.il/מרפאת-מצפה-רמון/",
+      "status": "needs_verification",
+      "coords_query": "מצפה רמון"
+    },
+    {
+      "id": "bikur_rofe_eilat",
+      "chain": "ביקור רופא",
+      "name": "ביקור רופא — אילת",
+      "city": "אילת",
+      "address": "הערבה 6 (בתוך קניון השלום-שרפ אילת)",
+      "phone": "08-6332265",
+      "phone_is_central": false,
+      "lat": 29.55805,
+      "lon": 34.94821,
+      "hours": {
+        "sun_thu": {
+          "open": "19:00",
+          "close": "23:00"
+        },
+        "fri": {
+          "open": "13:00",
+          "close": "23:00"
+        },
+        "sat": {
+          "open": "09:00",
+          "close": "23:00"
+        },
+        "by_day": {
+          "sun": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "mon": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "tue": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "wed": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "thu": {
+            "open": "19:00",
+            "close": "23:00"
+          },
+          "fri": {
+            "open": "13:00",
+            "close": "23:00"
+          },
+          "sat": {
+            "open": "09:00",
+            "close": "23:00"
+          }
+        },
+        "raw_he": "ימים א'-ה' 19:00-23:00 · ימי ו' וערבי חג 13:00-23:00 · שבתות וחגים 09:00-23:00",
+        "note": null
+      },
+      "source_url": "https://www.bikurofe.co.il/מרפאת-אילת/",
+      "status": "verified",
+      "coords_query": "אילת"
+    }
+  ],
+  "referral_template": {
+    "_note": "מבנה ההודעה הקבועה של Dr. Dexter. שלוש הכותרות מוצגות תמיד — גם כשריקות — כדי להראות שנבדקו כל האפשרויות.",
+    "critical_prefix": "זהו מצב חירום. יש להתקשר מיד למד\"א — 101. אין לנהוג עצמאית ואין להמתין.",
+    "sections": [
+      {
+        "key": "hospitals",
+        "title": "בתי חולים קרובים:",
+        "empty_text": "לא נמצא בית חולים במרחק סביר מהמיקום שנמסר."
+      },
+      {
+        "key": "bikur_rofe",
+        "title": "סניפי ביקור רופא קרובים:",
+        "empty_text": "לא נמצא סניף ביקור רופא פתוח כעת באזור."
+      },
+      {
+        "key": "terem",
+        "title": "סניפי טרם קרובים:",
+        "empty_text": "לא נמצא סניף טרם פתוח כעת באזור."
+      }
+    ],
+    "urgent_care_not_suitable_note": "מוקדי רפואה דחופה אינם מיועדים לחשד להתקף לב, שבץ או קושי נשימתי — במצבים אלה יש לפנות למיון או להתקשר ל-101.",
+    "footer_note": "* מומלץ להתקשר למוקד לפני ההגעה ולוודא זמינות ושעות פעילות. מוקדי טרם וביקור רופא יודעים להפנות למיון בעת הצורך.",
+    "health_fund_line": "ניתן גם לפנות למוקד קופת החולים שלך:"
+  }
+}

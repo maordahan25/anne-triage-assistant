@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>אזור מנהל המערכת — אן</title>
+  <link rel="icon" type="image/png" href="/assets/Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <!-- מקור האמת של הפלטה — הטוקנים הסמנטיים של אן -->
+  <link rel="stylesheet" href="/assets/colors.css" />
+  <link rel="stylesheet" href="/a11y.css" />
+  <link rel="stylesheet" href="/admin.css" />
+  <!-- נטען סינכרונית בכוונה: מחיל את העדפות הנגישות לפני הציור הראשון -->
+  <script src="/a11y.js"></script>
+</head>
+<body>
+  <!-- 2.4.1 — דילוג על הכותרת אל תוכן אזור המנהל -->
+  <a class="skip-link" href="#admin-content">דילוג לתוכן</a>
+
+  <!-- ══ מסך התחברות ══════════════════════════════════════════════════ -->
+  <div id="login-view" class="login-view" hidden>
+    <!-- דמות אן (Logo_2) — קישוט מיתוגי, מוסתר במסכים צרים -->
+    <img class="login-figure" src="/assets/Logo_2.png" alt="" aria-hidden="true" />
+
+    <main class="login-main">
+      <section class="login-card">
+        <img class="login-logo" src="/assets/Logo.png" alt="אן" />
+        <h1 class="login-title">כניסה למנהל המערכת</h1>
+        <p class="login-subtitle">
+          אזור ניהול — דשבורד, מודל חיזוי ומסמכי הפרויקט
+        </p>
+
+        <form id="login-form" class="login-form" autocomplete="on">
+          <div class="field">
+            <label for="admin-email">אימייל</label>
+            <!-- בלי placeholder עם כתובת אמיתית: השדה ריק בברירת מחדל.
+                 dir=ltr + autocapitalize=none — כתובת מייל אינה טקסט RTL,
+                 וזה גם מונע גרירת תווי כיווניות סמויים לתוך הערך. -->
+            <input
+              id="admin-email"
+              type="email"
+              inputmode="email"
+              dir="ltr"
+              autocapitalize="none"
+              spellcheck="false"
+              autocomplete="username"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="admin-password">סיסמה</label>
+            <div class="field-inner">
+              <input
+                id="admin-password"
+                type="password"
+                dir="ltr"
+                autocapitalize="none"
+                spellcheck="false"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                id="toggle-password"
+                class="icon-btn"
+                type="button"
+                aria-label="הצגת הסיסמה"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+                  <circle cx="12" cy="12" r="3.2" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button id="login-btn" class="btn-primary" type="submit">כניסה</button>
+
+          <div id="login-error" class="error-strip" role="alert" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7.5v5.5M12 16.3v.2" />
+            </svg>
+            <span id="login-error-text">אימייל או סיסמה שגויים</span>
+          </div>
+        </form>
+
+        <a class="ghost-link" href="/">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M14 6l-6 6 6 6" />
+          </svg>
+          חזרה לצ'אט
+        </a>
+      </section>
+
+      <p class="dashed-note">
+        כניסה זמנית להדגמה בלבד — בעתיד תוחלף בהתחברות Supabase
+        (משתמש וסיסמה בענן).
+      </p>
+      <div data-anne-credit></div>
+    </main>
+  </div>
+
+  <!-- ══ אזור המנהל ═══════════════════════════════════════════════════ -->
+  <div id="admin-view" class="admin-view" hidden>
+    <header class="admin-header">
+      <img class="admin-logo" src="/assets/Logo.png" alt="אן" />
+      <div class="admin-titles">
+        <h1 class="admin-name">אזור מנהל המערכת</h1>
+        <p class="admin-subtitle">ניהול, ניתוח ומסמכי הפרויקט</p>
+      </div>
+      <span id="admin-email-chip" class="email-chip"></span>
+      <nav class="admin-nav" aria-label="פעולות אזור המנהל">
+        <button id="logout-btn" class="btn-ghost" type="button">יציאה</button>
+        <a class="btn-primary btn-small" href="/">חזרה לצ'אט</a>
+      </nav>
+    </header>
+
+    <main id="admin-content" class="admin-main">
+      <div class="notice-card">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5.5M12 7.7v.2" />
+        </svg>
+        <p id="admin-note"></p>
+      </div>
+
+      <section class="admin-section">
+        <div class="section-head">
+          <h2 class="section-title">אפליקציות</h2>
+          <button id="refresh-btn" class="btn-ghost" type="button">
+            רענון מצב
+          </button>
+        </div>
+        <div id="apps-grid" class="apps-grid"></div>
+      </section>
+
+      <!-- כניסה אחת למסך התרחישים. הרשימה המלאה (ההודעות, "מה מדגים"
+           וכפתורי ההרצה) מוצגת אך ורק במסך הייעודי — כאן רק הדלת אליו,
+           כדי שלא תהיינה שתי תצוגות של אותו מקור אמת. -->
+      <section class="admin-section">
+        <h2 class="section-title">תרחישי הדגמה</h2>
+        <p class="section-note">
+          התרחישים מוצגים ומורצים במסך ייעודי, ונקראים מקובץ התרחישים החי
+          בזמן אמת. בחירת תרחיש שם פותחת את הצ'אט ומריצה אותו אוטומטית מול
+          אן — כל הודעה מוקלדת ונשלחת בתורה, והמריץ ממתין לסיום כל תשובה.
+        </p>
+        <div id="scenarios-entry" class="apps-grid"></div>
+      </section>
+
+      <section class="admin-section">
+        <h2 class="section-title">מסמכי הפרויקט</h2>
+        <p class="section-note">
+          כל מסמך נפתח כאן בתוך הממשק ונקרא מהמקור החי שלו בכל פתיחה —
+          מה שמוצג הוא תמיד הגרסה שעל הדיסק.
+        </p>
+        <div id="docs-grid" class="docs-grid"></div>
+      </section>
+    </main>
+
+    <footer class="admin-footer">
+      אן — פרויקט לימודי. אינו מהווה ייעוץ רפואי.
+      <div data-anne-credit></div>
+    </footer>
+  </div>
+
+  <!-- ══ מציג המסמכים ═════════════════════════════════════════════════
+       תצוגה אחת לכל המסמכים; התוכן נבנה ע"י הרנדרר המתאים ל-kind
+       (admin.js :: DOC_RENDERERS). -->
+  <div id="doc-view" class="doc-view" hidden>
+    <header class="doc-header">
+      <button id="doc-back" class="btn-ghost" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M10 6l6 6-6 6" />
+        </svg>
+        חזרה לאזור המנהל
+      </button>
+      <div class="doc-titles">
+        <h1 id="doc-title" class="doc-title"></h1>
+        <p id="doc-subtitle" class="doc-subtitle"></p>
+      </div>
+      <span id="doc-kind-chip" class="kind-chip" hidden></span>
+      <a id="doc-download" class="btn-ghost btn-small" hidden>הורדת הקובץ</a>
+    </header>
+    <main id="doc-body" class="doc-body" aria-live="polite" aria-busy="false"></main>
+    <footer class="doc-footer">
+      <div data-anne-credit></div>
+    </footer>
+  </div>
+
+  <!-- ══ הגדלת איור (lightbox) ═════════════════════════════════════════
+       שכבת-על אחת לכל הגלריה: התמונה נפתחת בגודל מלא במקום להישאר
+       זעירה בכרטיס. התוכן (שם, תמונה, שלבים) נכתב ע"י admin.js בכל
+       פתיחה — כאן רק השלד.
+
+       * מוסתר בתכונת hidden, וההסתרה הזו תופסת רק בזכות הכלל
+         [hidden] { display: none !important } בראש admin.css: ל-.illu-
+         lightbox יש display:flex, ובתיקו של specificity גיליון המחבר
+         גובר על גיליון הדפדפן (בדיוק הבאג שהשאיר בעבר את מסך ההתחברות
+         גלוי אחרי התחברות מוצלחת).
+       * הכותרת היא <p> ולא כותרת h: הבלוק יושב אחרי כל התצוגות, ותגית
+         h1 כאן הייתה נספרת כ-h1 שני בתצוגת המציג. aria-labelledby נותן
+         לחלון את שמו הנגיש בלי להתערב בהיררכיית הכותרות. -->
+  <div
+    id="illu-lightbox"
+    class="illu-lightbox"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="illu-lightbox-title"
+    hidden
+  >
+    <div id="illu-lightbox-backdrop" class="illu-lightbox-backdrop"></div>
+    <figure class="illu-lightbox-card">
+      <div class="illu-lightbox-head">
+        <p id="illu-lightbox-title" class="illu-lightbox-title"></p>
+        <button
+          id="illu-lightbox-close"
+          class="illu-lightbox-close"
+          type="button"
+          aria-label="סגירת התצוגה המוגדלת"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <img id="illu-lightbox-img" class="illu-lightbox-img" src="" alt="" />
+      <figcaption id="illu-lightbox-caption" class="illu-lightbox-caption">
+        <ol id="illu-lightbox-steps" class="illu-lightbox-steps"></ol>
+        <p class="illu-lightbox-hint">סגירה במקש Esc, בכפתור הסגירה או בלחיצה מחוץ לתמונה.</p>
+      </figcaption>
+    </figure>
+  </div>
+
+  <script src="/credit.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

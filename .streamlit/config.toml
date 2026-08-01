@@ -1,0 +1,11 @@
+# ערכת הנושא של דשבורד אן — טוקני המותג מ-assets/palette.json.
+[theme]
+base = "light"
+primaryColor = "#F2876F"          # coral-400 — btn_primary
+backgroundColor = "#FFF8F2"       # sand-50 — bg_page
+secondaryBackgroundColor = "#FFFFFF"  # bg_surface
+textColor = "#4A3A4F"             # plum-600 — text_primary
+
+[browser]
+# עקביות עם מדיניות הפרויקט (טלמטריית crewai כבויה): בלי איסוף נתונים.
+gatherUsageStats = false

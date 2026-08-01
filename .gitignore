@@ -1,0 +1,33 @@
+# סודות וסביבה — לעולם לא בבקרת גרסאות
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Vector DB (נוצר אוטומטית ע"י build_index.py)
+chroma_db/
+
+# לוג השיחות האנונימי (SQLite) — נוצר בזמן ריצה (כולל הקובץ הסינתטי)
+anne_log*.db
+
+# תוצרי אימון מודל החיזוי — נבנים מחדש עם python -m ml.train
+ml/models/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# מטמון מודלים / HuggingFace
+.cache/
+
+# הגדרות מקומיות של Claude Code (הרשאות למכונה הזו, לא תוצר של הפרויקט)
+.claude/settings.local.json*
+
+# מערכת הפעלה / עורך
+.DS_Store
+.idea/
+.vscode/

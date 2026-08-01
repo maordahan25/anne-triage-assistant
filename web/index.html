@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>אן — אחות דיגיטלית לעזרה ראשונית</title>
+  <link rel="icon" type="image/png" href="/assets/Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <!-- מקור האמת של הפלטה — הטוקנים הסמנטיים של אן -->
+  <link rel="stylesheet" href="/assets/colors.css" />
+  <link rel="stylesheet" href="/a11y.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <!-- נטען סינכרונית בכוונה: מחיל את העדפות הנגישות השמורות לפני הציור
+       הראשון, כדי שלא יהיה הבהוב של ניגודיות/גודל טקסט. ראה web/a11y.js -->
+  <script src="/a11y.js"></script>
+</head>
+<body>
+  <!-- 2.4.1 — דילוג על הכותרת אל השיחה; מוצג רק כשהוא מקבל מיקוד -->
+  <a class="skip-link" href="#chat">דילוג לשיחה עם אן</a>
+
+  <header class="app-header">
+    <img class="header-avatar" src="/assets/Anne_avatae.png" alt="" />
+    <div class="header-titles">
+      <h1 class="header-name">
+        אן
+        <span class="status-dot" role="img" aria-label="אן מחוברת"></span>
+      </h1>
+      <p class="header-subtitle">אחות דיגיטלית לעזרה ראשונית</p>
+    </div>
+    <span class="disclaimer-chip">לא מהווה ייעוץ רפואי</span>
+    <nav class="header-nav" aria-label="ניווט ראשי">
+      <!-- כניסה לאזור המנהל — בפינה הלוגית של הכותרת (שמאל ב-RTL) -->
+      <a class="admin-entry" href="/admin" title="כניסה למנהל המערכת">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M7 11V8a5 5 0 0110 0v3" />
+          <rect x="5" y="11" width="14" height="9" rx="2" />
+          <path d="M12 15v1.8" />
+        </svg>
+        <span>כניסה למנהל המערכת</span>
+      </a>
+    </nav>
+  </header>
+
+  <!-- סרגל מריץ התרחישים — מוצג רק כשרץ תרחיש (/?demo=<id>).
+       role="group" עם שם: כשהוא מופיע, קורא מסך יכול לזהות מה זה. -->
+  <div id="demo-bar" class="demo-bar" role="group"
+       aria-label="מריץ תרחיש הדגמה" hidden>
+    <span class="demo-badge">הדגמה</span>
+    <div class="demo-info">
+      <span id="demo-title" class="demo-title"></span>
+      <!-- מצב ההרצה מוכרז בנימוס: "אן עונה…", "התור הבא בעוד 3…" -->
+      <span id="demo-state" class="demo-state" role="status"></span>
+    </div>
+    <span id="demo-step" class="demo-step"></span>
+    <div
+      id="demo-track"
+      class="demo-track"
+      role="progressbar"
+      aria-label="התקדמות התרחיש"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+    >
+      <span id="demo-fill" class="demo-fill"></span>
+    </div>
+    <button id="demo-stop" class="demo-stop" type="button">עצור</button>
+  </div>
+
+  <main class="chat-main">
+    <h2 class="sr-only">השיחה עם אן</h2>
+    <!-- role="log" + aria-live="polite": הודעה שנוספת מוכרזת אחרי שהמשתמש
+         מסיים לדבר. בהזרמה הבועה מסומנת aria-hidden עד שהתשובה שלמה,
+         כדי שלא יוכרז כל מקטע בנפרד (ראה web/app.js). -->
+    <div
+      id="chat"
+      class="chat"
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
+      aria-label="היסטוריית השיחה"
+      tabindex="-1"
+    ></div>
+
+    <!-- אזורי הכרזה. שניהם קיימים ב-DOM מהטעינה — קורא מסך אינו מכריז
+         תוכן של אזור live שנוצר יחד עם התוכן שבו. -->
+    <div id="chat-status" class="sr-only" role="status"></div>
+    <!-- חירום: role="alert" הוא assertive — קוטע את ההקראה הנוכחית.
+         באפליקציה רפואית זה ההבדל בין "יישמע בתורו" ל"יישמע עכשיו". -->
+    <div id="chat-alert" class="sr-only" role="alert"></div>
+  </main>
+
+  <footer class="composer">
+    <div class="composer-inner">
+      <!-- תצוגה מקדימה של התמונה שצורפה — מוסתרת עד שבוחרים תמונה.
+           ההסתרה היא תכונת hidden, ולכן [hidden] ב-style.css חייב להישאר
+           (אחרת display:flex של .attach-preview גובר עליה). -->
+      <div id="attach-preview" class="attach-preview" hidden>
+        <img id="attach-thumb" class="attach-thumb" src="" alt="התמונה שבחרתם לצרף" />
+        <span id="attach-name" class="attach-name"></span>
+        <button id="attach-remove" class="attach-remove" type="button"
+                aria-label="הסרת התמונה המצורפת">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+      <form id="composer-form" autocomplete="off">
+        <label class="sr-only" for="composer-input">
+          כתיבת הודעה לאן
+        </label>
+        <!-- צירוף תמונה: input אמיתי (מוסתר) + כפתור שמפעיל אותו, כדי
+             שהעיצוב יהיה שלנו והנגישות תישאר של הדפדפן. -->
+        <label class="sr-only" for="image-input">בחירת תמונה לצירוף</label>
+        <input
+          id="image-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+        />
+        <button id="attach-btn" type="button" aria-label="צירוף תמונה להודעה">
+          <!-- אטב -->
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M20 11.5 12.4 19a4.5 4.5 0 0 1-6.4-6.4l7.6-7.6a3 3 0 0 1 4.3 4.3l-7.6 7.6a1.5 1.5 0 0 1-2.2-2.2l6.9-6.9" />
+          </svg>
+        </button>
+        <input
+          id="composer-input"
+          type="text"
+          placeholder="ספרו לי מה מרגישים…"
+          maxlength="4000"
+          enterkeyhint="send"
+        />
+        <button id="send-btn" type="submit" aria-label="שליחת ההודעה">
+          <!-- חץ שליחה שמאלה (RTL) -->
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+            <path d="M21 12 3.5 4.2c-.6-.27-1.24.3-1.02.92L4.9 12l-2.42 6.88c-.22.62.42 1.19 1.02.92L21 12z" transform="scale(-1,1) translate(-24,0)" />
+          </svg>
+        </button>
+      </form>
+      <p class="composer-note">
+        אן היא כלי לימודי לעזרה ראשונית — במצב חירום חייגו 101.
+        <a class="composer-a11y-link" href="/accessibility">הצהרת נגישות</a>
+      </p>
+      <!-- קרדיט: נבנה ע"י web/credit.js מהערכים של credit.py -->
+      <div data-anne-credit></div>
+    </div>
+  </footer>
+
+  <script src="/credit.js"></script>
+  <script src="/app.js"></script>
+  <!-- מריץ התרחישים — נטען אחרי app.js ומשתמש בו כמו משתמש אנושי -->
+  <script src="/demo.js"></script>
+</body>
+</html>
