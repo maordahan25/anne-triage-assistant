@@ -53,6 +53,7 @@ from dashboard.ui import (  # noqa: E402
     sidebar_filters,
     sidebar_footer,
     sidebar_sibling_link,
+    source_label,
 )
 
 # מודול החיזוי — תלות רכה: העמוד עולה גם אם scikit-learn/joblib חסרים
@@ -229,7 +230,7 @@ def _render_prediction(filtered: pd.DataFrame, db_path: str) -> None:
     # ── אימון (מחדש) על קובץ הלוג הנבחר ─────────────────────────────────
     with st.expander("🎓 אימון כל המודלים על הקובץ הנבחר"):
         st.caption(
-            f"אימון על `{Path(db_path).name}` ושמירה אל "
+            f"אימון על `{source_label(db_path)}` ושמירה אל "
             f"`{resolve_model_path().name}`. כל המודלים מאומנים על *אותו* "
             "פיצול אימון/בדיקה — אחרת ההשוואה ביניהם חסרת משמעות. אם בקובץ "
             "אין גם תורי חירום וגם תורי שגרה — האימון ייעצר בהודעה ברורה."

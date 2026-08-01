@@ -31,6 +31,11 @@ from storage.turn_log import PROJECT_ROOT, fetch_turns
 
 # ברירת המחדל לאימון היא הדאטה הסינתטי — לא הלוג האמיתי — בכוונה:
 # ההדגמה לימודית, והלוג האמיתי קטן מכדי לאמן עליו (עקפו עם --db).
+#
+# הנתיב הזה משמעותי בשני ה-backends: כשה-backend הוא Supabase, שכבת
+# ה-storage ממפה קובץ ששמו מכיל synthetic לטבלה turns_synthetic (ראה
+# storage/backend.py). כלומר `python -m ml.train` מתאמן על הדאטה הסינתטי
+# של המקור הפעיל, בלי פרמטר נוסף ובלי שהמודול הזה יידע מי המקור.
 DEFAULT_TRAIN_DB = PROJECT_ROOT / "anne_log_synthetic.db"
 
 TARGET = "emergency"

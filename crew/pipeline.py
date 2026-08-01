@@ -632,12 +632,16 @@ def _log_turn_safe(
     verbose: bool = False,
 ) -> None:
     """
-    רישום התור בלוג ה-SQLite האנונימי (storage/turn_log.py) — best-effort.
+    רישום התור בלוג האנונימי (storage/turn_log.py) — best-effort.
 
     ה-import עצל וכל חריגה נבלעת: גם שכבת אחסון חסרה/שבורה לא מפילה את
     השיחה ולא משנה את התשובה למשתמש. log_turn עצמו כבר בולע כשלים ומחזיר
     False — ה-try כאן הוא חגורת ביטחון נוספת (למשל כשל import). הרשומה
     אנונימית במבנה: טקסטים נשמרים כאורכים בלבד (ראה scrub_record והסכמה).
+
+    ל-pipeline לא אכפת לאן זה נכתב: שכבת ה-storage בוחרת בין SQLite מקומי
+    ל-Postgres של Supabase (ANNE_LOG_BACKEND), וכשל בענן נופל שם חיננית
+    לקובץ המקומי. אין כאן שום פרמטר יעד — בכוונה.
     """
     try:
         from storage.turn_log import log_turn

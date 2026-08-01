@@ -79,8 +79,12 @@ Anne/
 │   ├── crew.py           #   ה-crew ההיררכי: manager מנתב + הרופאים
 │   ├── pipeline.py       #   זרימת תור-שיחה: בטיחות -> אן -> ייעוץ -> ניסוח
 │   └── main.py           #   נקודת כניסה: צ'אט אינטראקטיבי במסוף
-├── storage/              # לוג שיחות אנונימי (SQLite, ספריית התקן בלבד)
+├── storage/              # לוג שיחות אנונימי — SQLite מקומי או Supabase
 │   ├── turn_log.py       #   הסכמה + init_db / log_turn / reset_log + scrub
+│   ├── backend.py        #   המתג (ANNE_LOG_BACKEND) + נפילה חיננית ל-SQLite
+│   ├── supabase_backend.py #   חיבור Postgres: SQLAlchemy+psycopg, pooler, קידוד סיסמה
+│   ├── pg_schema.py      #   אותה סכמה בניב Postgres + מחולל סקריפט המיגרציה
+│   ├── migrations/       #   001_create_turns.sql — להרצה ב-SQL Editor (RLS, בלי anon)
 │   └── synthetic.py      #   מחולל דאטה סינתטי לדשבורד (python -m storage.synthetic)
 ├── dashboard/            # שתי אפליקציות Streamlit מעל הלוג (שני פורטים)
 │   ├── data.py           #   שכבת נתונים טהורה (pandas) — נבדקת אופליין
@@ -306,9 +310,75 @@ Anne/
 (`consulted=0`) — מבחין בין "לא נועץ" לבין "נועץ ונפל ל-fallback".
 
 **API:** `init_db()` · `log_turn(result, ...)` (סלחני, מחזיר bool) ·
-`write_record()` (קפדני, תמיד דרך scrub) · `reset_log()` (מחיקת כל
-הרשומות — כפתור המנהל בדשבורד) · `fetch_turns()`. נתיב הקובץ ניתן לעקיפה
-ב-`ANNE_LOG_DB`. קובצי `anne_log*.db` אינם בבקרת גרסאות.
+`write_record()` (קפדני, תמיד דרך scrub) · `write_records()` (רבות,
+בטרנזקציה אחת) · `reset_log()` (מחיקת כל הרשומות — כפתור המנהל בדשבורד) ·
+`fetch_turns()`. נתיב הקובץ ניתן לעקיפה ב-`ANNE_LOG_DB`. קובצי
+`anne_log*.db` אינם בבקרת גרסאות.
+
+#### שני backends: SQLite מקומי או Supabase (Postgres) ✅ בנוי ונבדק
+
+לאותה סכמה בדיוק יש שני מימושים, והבחירה ביניהם היא **שורה אחת ב-`.env`**:
+
+```bash
+ANNE_LOG_BACKEND=sqlite     # ברירת המחדל — קובץ מקומי, ספריית התקן בלבד
+ANNE_LOG_BACKEND=supabase   # Postgres מנוהל בענן
+ANNE_LOG_TABLE=turns        # turns (לוג חי) / turns_synthetic (דאטה סינתטי)
+SUPABASE_DB_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
+SUPABASE_URL=https://PROJECT_REF.supabase.co     # זהות הפרויקט
+SUPABASE_SERVICE_KEY=...                          # (לשלבים הבאים)
+```
+
+- **שום חתימה לא השתנתה.** המתג יושב *מתחת* ל-API: `storage/backend.py`
+  מפענח יעד (`Target`), ו-`storage/supabase_backend.py` מחזיק את החיבור.
+  `crew/pipeline.py`, הדשבורד ומודל החיזוי לא יודעים בכלל באיזה backend הם
+  רצים — בדיקת אופליין משווה את שמות הפרמטרים של כל פונקציה לרשימה קבועה,
+  כך ששינוי חתימה נופל מיד.
+- **נפילה חיננית, לא קריסה.** הגדרות חסרות, חבילה חסרה או חיבור שנכשל
+  מחזירים את הלוג ל-SQLite המקומי עם **אזהרה אחת ללוג** — השיחה נמשכת
+  והתור נרשם מקומית. הנפילה דביקה לכל התהליך בכוונה (תור שמחכה לטיים-אאוט
+  בכל הודעה גרוע מלוג מקומי מוצהר), והדשבורד מציג הערה במקום להעמיד פנים
+  שהנתונים מהענן.
+- **`SUPABASE_URL` ו-`SUPABASE_SERVICE_KEY` אינם בשימוש בשכבה הזו** — היא
+  מדברת Postgres ישר ולא דרך ה-REST API. הם מוצהרים כזהות הפרויקט ולשלב
+  ניהול המשתמשים (נקודה 18 בתוכנית הבדיקות).
+
+**הקמת הסכמה (פעם אחת):** Supabase → **SQL Editor** → New query → להדביק
+ולהריץ את `storage/migrations/001_create_turns.sql`. הסקריפט אידמפוטנטי,
+יוצר את שתי הטבלאות עם אותן 26 עמודות ואילוצי ה-CHECK, ומאבטח אותן:
+**RLS מופעל ללא אף policy + שלילת הרשאות מ-`anon` ומ-`authenticated`** —
+כלומר המפתח הציבורי שבדפדפן אינו יכול לקרוא או לכתוב את הלוג. הקובץ נוצר
+מ-`storage/pg_schema.py` (`python -m storage.pg_schema --write`), ובדיקת
+אופליין משווה ביניהם כדי שלא יתיישן.
+
+**חיבור ישיר מול Transaction pooler.** ברירת המחדל היא ה-**Direct
+connection** (פורט **5432**). אם הוא נכשל (רשת שחוסמת אותו, IPv6, סביבה
+serverless), עוברים ל-**Transaction pooler** (פורט **6543**):
+
+```bash
+# החלפה קבועה — פשוט מדביקים את המחרוזת השנייה (Supabase → Connect):
+SUPABASE_DB_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+
+# או גיבוי אוטומטי: הישיר נשאר, וזה נוסה רק אם הוא נכשל
+SUPABASE_DB_URL_POOLER=postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+```
+
+הקוד מזהה pooler לפי הפורט או שם המאחסן ומחליף הגדרות בהתאם: בלי pool
+מקומי (`NullPool`) ובלי prepared statements (`prepare_threshold=None`) —
+שתי הדרישות של pgbouncer במצב טרנזקציה. שם המאחסן של ה-pooler כולל את
+האזור ולכן **אי אפשר לגזור אותו** מהמחרוזת הישירה; זו הסיבה שהגיבוי
+האוטומטי דורש להדביק גם אותו.
+
+**הסיסמה מקודדת אוטומטית.** סיסמה שנוצרה ב-Supabase עשויה להכיל
+`@ / : # %` ורווח — כל אחד מהם מפרק מחרוזת חיבור. `normalize_db_url`
+מפרק את המחרוזת ידנית (חיתוך ב-`@` **האחרון**, כי `urlsplit` נשבר בדיוק
+על סיסמה כזו), מקודד את הסיסמה ב-URL-encoding בלי קידוד כפול, ומשלים
+`sslmode=require`. אין צורך לקודד ידנית, והסיסמה לא נרשמת לשום לוג.
+
+**מה עוד עובד מעל שני ה-backends:** מתג "חי / סינתטי" בשתי אפליקציות
+ה-Streamlit בוחר **טבלה** (`turns` / `turns_synthetic`) ולא מחליף חיבור;
+מודל החיזוי מתאמן על מקור הנתונים הפעיל; ו-`python -m storage.synthetic`
+זורע לטבלה ב-Supabase באותה פקודה (`--db turns_synthetic`, או ברירת המחדל
+שממופה אליה) ומדפיס בסיום את היעד **בפועל**.
 
 ### דשבורד ניתוח + עמוד חיזוי (dashboard/) ✅ בנוי ונבדק
 
@@ -680,6 +750,14 @@ python test_anne_suite.py --offline  # בדיקות אופליין — חינם,
 #    נכתב לקובץ נפרד (anne_log_synthetic.db) דרך אותו מסלול scrub+CHECK;
 #    אותו seed מייצר אותו דאטה (--reset מנקה לפני כתיבה חוזרת)
 python -m storage.synthetic --rows 500 --seed 42
+#    ב-ANNE_LOG_BACKEND=supabase אותה פקודה זורעת לטבלה turns_synthetic
+#    (או במפורש: --db turns_synthetic), ומדפיסה בסיום את היעד בפועל.
+
+# 7ב. Supabase (אופציונלי) — חד-פעמי, לפני המעבר ל-ANNE_LOG_BACKEND=supabase:
+#     להריץ את storage/migrations/001_create_turns.sql ב-SQL Editor של
+#     Supabase (יוצר turns ו-turns_synthetic, מפעיל RLS וחוסם את anon).
+#     הסקריפט אידמפוטנטי; הוא נוצר מהסכמה ואפשר לבנותו מחדש:
+python -m storage.pg_schema --write      # חינם, ללא רשת
 
 # 8. שתי אפליקציות ה-Streamlit מעל הלוג (חינם, ללא LLM; שרתים מקומיים).
 #    כל אחת רצה בטרמינל משלה ובפורט משלה, ואפשר להריץ רק אחת מהן.
@@ -774,6 +852,8 @@ python -m pip install --prefer-binary -r llm_requirements.txt
 cp .env.example .env
 #    OPENAI_API_KEY — חובה לשלב הסוכנים
 #    ADMIN_EMAIL / ADMIN_PASSWORD — לאזור המנהל (בלעדיהם אין כניסה)
+#    ANNE_LOG_BACKEND — sqlite (ברירת מחדל) או supabase; ל-supabase נדרש
+#    גם SUPABASE_DB_URL, ובלעדיו הלוג נופל חיננית ל-SQLite עם אזהרה
 
 # 3. בניית ה-Vector DB — חובה, כי chroma_db/ אינו בבקרת גרסאות.
 #    בהרצה ראשונה יורד מודל ה-embedding (~2GB).

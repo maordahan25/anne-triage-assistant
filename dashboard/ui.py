@@ -34,7 +34,14 @@ from dashboard.data import (
     load_turns_df,
 )
 from storage.synthetic import DEFAULT_SYNTH_DB
-from storage.turn_log import DEFAULT_DB_PATH, ENV_DB_VAR
+from storage.turn_log import (
+    DEFAULT_DB_PATH,
+    ENV_DB_VAR,
+    LIVE_TABLE,
+    SYNTHETIC_TABLE,
+    init_db,
+    resolve_target,
+)
 
 # ── פלטת האפליקציות ──────────────────────────────────────────────────────
 # ערכת קטגוריות אחת בסדר קבוע, נגזרת ממשפחות המותג (קורל, לבנדר, זהב,
@@ -427,21 +434,67 @@ def db_options() -> list[str]:
 
 
 def is_synthetic_db(path: str | Path) -> bool:
-    """האם קובץ הלוג הזה הוא הדאטה הסינתטי (לפי שם הקובץ)."""
+    """האם היעד הזה הוא הדאטה הסינתטי (לפי שמו — קובץ או טבלה)."""
     return "synthetic" in Path(path).name.lower()
+
+
+def source_label(db_path: str | Path) -> str:
+    """
+    שם היעד לתצוגה: שם קובץ ה-SQLite, או "Supabase · <טבלה>".
+
+    פונקציה אחת לשתי האפליקציות ולכל מקום שמציג "מאיפה הנתונים" (כיתוב
+    התחתית, הודעת האיפוס, כיתוב האימון בעמוד החיזוי) — כדי שהחלפת
+    backend לא תשאיר מסך אחד שמדבר על קבצים.
+    """
+    target = resolve_target(db_path)
+    return f"Supabase · {target.table}" if target.is_supabase else target.label
+
+
+def _probe_backend() -> str:
+    """
+    הכנת ה-backend הפעיל, והערה לתצוגה כשהוא אינו מה שהתבקש.
+
+    ב-SQLite אין מה להכין (הקובץ נוצר בטעינה) ומוחזרת מחרוזת ריקה.
+    ב-Supabase init_db הוא הכנה חד-פעמית בתהליך: חיבור + טבלה. כשהוא
+    נכשל, שכבת ה-storage כבר החליפה ל-SQLite עם אזהרה בלוג — וכאן זה
+    הופך גם להערה על המסך, כי דשבורד שמציג נתונים מקומיים בשקט בזמן
+    שהמשתמש חושב שהוא מסתכל על הענן הוא בדיוק סוג התקלה שאי אפשר לאתר.
+
+    התנאי נבדק מול ה-backend ש*התבקש* ולא מול זה שרץ בפועל: אחרי נפילה
+    חיננית הפעיל הוא sqlite, ובדיקה מול הפעיל הייתה מעלימה את ההערה
+    מהריצה השנייה של הסקריפט (Streamlit מריץ מחדש בכל אינטראקציה) —
+    כלומר האזהרה הייתה מהבהבת פעם אחת ונעלמת.
+    """
+    from storage.backend import fallback_reason, requested_backend
+
+    if requested_backend() != "supabase":
+        return ""
+    try:
+        init_db()
+    except Exception:  # לא אמור לקרות — init_db בולע ונופל חיננית
+        pass
+    reason = fallback_reason()
+    if reason:
+        return f"⚠ החיבור ל-Supabase נכשל — מוצגים נתונים מקומיים ({reason})."
+    return ""
 
 
 def db_choices() -> dict[str, str]:
     """
-    שתי אפשרויות המתג: תווית -> נתיב קובץ הלוג בפועל.
+    שתי אפשרויות המתג: תווית -> היעד בפועל (קובץ SQLite או טבלה ב-Supabase).
 
     הבחירה היא בין שני *מצבים* ("חי" מול "סינתטי") ולא בין שמות קבצים,
-    ולכן לכל מצב נבחר קובץ אחד: הראשון מ-db_options שמתאים לו (משתנה
-    הסביבה ANNE_LOG_DB נבדק ראשון ולכן הוא זה שגובר, בקטגוריה שלו), ואם
-    אין כזה — נתיב ברירת המחדל של אותו מצב. הנתיב מוחזר גם כשהקובץ עדיין
-    לא קיים: הוא נוצר ריק בקריאה הראשונה, וההודעה "אין עדיין רשומות"
-    מוצגת כרגיל (empty_log_notice) במקום מסך שבור.
+    ולכן לכל מצב נבחר יעד אחד. ב-Supabase שני המצבים הם שתי טבלאות באותו
+    פרויקט (turns / turns_synthetic) — המתג מחליף טבלה ולא חיבור, ולכן
+    המעבר מיידי ואינו נוגע בהגדרות. ב-SQLite כל מצב הוא קובץ: הראשון
+    מ-db_options שמתאים לו (משתנה הסביבה ANNE_LOG_DB נבדק ראשון ולכן הוא
+    זה שגובר, בקטגוריה שלו), ואם אין כזה — נתיב ברירת המחדל של אותו מצב.
+    הנתיב מוחזר גם כשהקובץ עדיין לא קיים: הוא נוצר ריק בקריאה הראשונה,
+    וההודעה "אין עדיין רשומות" מוצגת כרגיל (empty_log_notice) במקום מסך
+    שבור.
     """
+    if resolve_target().is_supabase:
+        return {LIVE_SOURCE_HE: LIVE_TABLE, SYNTHETIC_SOURCE_HE: SYNTHETIC_TABLE}
     options = db_options()
     live = next(
         (path for path in options if not is_synthetic_db(path)),
@@ -469,11 +522,18 @@ def sidebar_data_source() -> str:
     """
     with st.sidebar:
         st.header("מקור נתונים")
+        # בדיקת ה-backend *לפני* שמציירים את המתג: במצב Supabase זו הכנה
+        # אחת לכל התהליך (חיבור + טבלה), ואם היא נכשלת שכבת ה-storage
+        # נופלת חיננית ל-SQLite כאן ולא באמצע הטעינה — כך הכיתוב שמתחת
+        # למתג מתאר את מה שבאמת נקרא, ולא את מה שהתבקש ב-.env.
+        source_note = _probe_backend()
         choices = db_choices()
-        # ברירת המחדל היא המצב של הקובץ הראשון ב-db_options — כלומר
-        # ANNE_LOG_DB אם הוגדר, ואחרת הלוג החי. זו בדיוק ההתנהגות שהייתה
-        # לרשימה הנפתחת (שהציגה את אותו קובץ ראשון).
-        first_option = db_options()[0]
+        # ברירת המחדל היא המצב של היעד הראשון — ANNE_LOG_DB אם הוגדר
+        # (או ANNE_LOG_TABLE ב-Supabase), ואחרת הלוג החי. זו בדיוק
+        # ההתנהגות שהייתה לרשימה הנפתחת (שהציגה את אותו קובץ ראשון).
+        default_target = resolve_target()
+        first_option = (default_target.table if default_target.is_supabase
+                        else db_options()[0])
         default = (
             SYNTHETIC_SOURCE_HE if is_synthetic_db(first_option)
             else LIVE_SOURCE_HE
@@ -490,8 +550,11 @@ def sidebar_data_source() -> str:
                  "דאטה שנוצר לניסוי (storage.synthetic).",
         )
         db_path = choices[selected or default]
+        target = resolve_target(db_path)
         path = Path(db_path)
-        if path.exists():
+        if target.is_supabase:
+            st.caption(f"Supabase (Postgres) · טבלה `{target.table}`")
+        elif path.exists():
             st.caption(f"קובץ: `{path.name}`")
         elif is_synthetic_db(path):
             st.caption(
@@ -503,13 +566,21 @@ def sidebar_data_source() -> str:
                 f"`{path.name}` עדיין לא נוצר — הוא נכתב אוטומטית "
                 "בשיחה הראשונה עם אן."
             )
+        if source_note:
+            st.caption(source_note)
         if st.button("↻ רענון נתונים", width="stretch"):
             st.cache_data.clear()
     return db_path
 
 
 def load_selected(db_path: str) -> pd.DataFrame:
-    """טעינת הקובץ הנבחר (עם ה-cache שמפתחו כולל את mtime הקובץ)."""
+    """
+    טעינת היעד הנבחר (עם ה-cache שמפתחו כולל את mtime הקובץ).
+
+    ב-Supabase אין קובץ ולכן אין mtime: המפתח נשאר 0.0 והרענון נשען על
+    ה-TTL של ה-cache (60 שניות) ועל כפתור הרענון — בדיוק כמו שהיה עם
+    קובץ שנכתב מבחוץ בין שני רענונים.
+    """
     path = Path(db_path)
     return load_turns_cached(db_path, path.stat().st_mtime if path.exists() else 0.0)
 
@@ -578,9 +649,9 @@ def sidebar_footer() -> None:
 
 def dataset_caption(db_path: str, filtered: pd.DataFrame,
                     df_all: pd.DataFrame) -> None:
-    """שורת המקור בתחתית העמוד: איזה קובץ, כמה נשאר אחרי סינון, גרסת סכמה."""
+    """שורת המקור בתחתית העמוד: איזה יעד, כמה נשאר אחרי סינון, גרסת סכמה."""
     st.caption(
-        f"מקור: `{Path(db_path).name}` · {len(filtered):,} רשומות מסוננות "
+        f"מקור: `{source_label(db_path)}` · {len(filtered):,} רשומות מסוננות "
         f"מתוך {len(df_all):,} · סכמה גרסה "
         f"{int(df_all['schema_version'].max())}"
     )

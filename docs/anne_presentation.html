@@ -650,7 +650,7 @@ python-dotenv          <span class="c"># ניהול מפתחות</span>
     <p class="lead" data-anim>העיקרון: <b>data minimization</b> — לא לשמור מה שלא הכרחי.</p>
     <div class="cards c4">
       <div class="card" data-anim><div class="ico">⚿</div><h3>ניהול סודות</h3><p>מפתח ה-LLM וקוד המנהל ב-<b>.env</b> בלבד, מוחרג ב-<b>.gitignore</b>; לצידו <b>.env.example</b> ציבורי כתבנית.</p></div>
-      <div class="card g" data-anim><div class="ico">⛉</div><h3>לוג בלי PII</h3><p>הלוג שומר <b>רק שדות מובנים</b>. אין בו שדה טקסט-חופשי — כלומר אין מקום פיזי לשמור בו פרט מזהה, גם לא בטעות.</p></div>
+      <div class="card g" data-anim><div class="ico">⛉</div><h3>לוג בלי PII</h3><p>הלוג שומר <b>רק שדות מובנים</b> — אין שדה טקסט-חופשי, ולכן אין מקום פיזי לפרט מזהה. בענן מופעל <b>RLS</b> ואין הרשאות למפתח הציבורי.</p></div>
       <div class="card l" data-anim><div class="ico">☖</div><h3>המשכיות בלי זהות</h3><p>מזהה אקראי בדפדפן (כמו קוקי פונקציונלי, בלי מעקב) מחזיק את רצף השיחה — <b>והמזהה עצמו אינו נכתב ללוג</b>.</p></div>
       <div class="card r" data-anim><div class="ico">⛔</div><h3>Guardrails וגבולות</h3><p>דקסטר חוסם הסלמה מסוכנת ו-prompt injection; אן <b>לא מאבחנת ולא רושמת תרופות</b> — עזרה ראשונית והפניה בלבד.</p></div>
     </div>
@@ -721,7 +721,7 @@ python-dotenv          <span class="c"># ניהול מפתחות</span>
       <div class="cards" style="gap:12px">
         <div class="card" data-anim><h3>שדות מובנים בלבד</h3><p>כל שדה הוא קטגוריה, מספר או תאריך. מה שהמשתמש הקליד <b>אינו נשמר</b> — רק התמצית הרפואית שנגזרה ממנו.</p></div>
         <div class="card g" data-anim><h3>✦ ה-target של החיזוי</h3><p><b>referred_er</b> נאסף מהיום הראשון בכוונה — בלי לשמור אותו עכשיו, לא היה מה לנבא אחר כך. זו תכנון קדימה, לא מזל.</p></div>
-        <div class="card l" data-anim><h3>כתיבה שלא מפילה שיחה</h3><p>הלוג נכתב בתוך try/except: אם הכתיבה נכשלת, המשתמש עדיין מקבל את התשובה שלו.</p></div>
+        <div class="card l" data-anim><h3>מקומי או בענן</h3><p>אותה סכמה בשני ה-backends. הכתיבה עטופה ב-try/except, וכשל בענן נופל ל-SQLite — המשתמש עדיין מקבל את תשובתו.</p></div>
       </div>
     </div>
   </div>
@@ -834,7 +834,7 @@ python-dotenv          <span class="c"># ניהול מפתחות</span>
     <h2 data-anim>מהמחשב לרשת</h2>
     <div class="cards c3">
       <div class="card" data-anim><div class="ico">⑂</div><h3>Git, GitHub ופריסה</h3><p>ניהול גרסאות ב-<b>Git + GitHub</b>, ופריסה שהופכת את המערכת לזמינה בקישור. המפתחות נשארים ב-.env.</p></div>
-      <div class="card g" data-anim><div class="ico">☁</div><h3>אחסון בענן — Supabase</h3><p><b>Postgres מנוהל</b> בענן במקום SQLite מקומי, עם ניהול משתמשים אמיתי. בזכות שכבת אחסון מודולרית זו החלפת "צינור" ולא שכתוב.</p></div>
+      <div class="card g" data-anim><div class="ico">☁</div><h3>אחסון בענן — Supabase</h3><p>הלוג יושב ב-<b>Postgres מנוהל</b> בענן: שתי טבלאות (חי וסינתטי), <b>RLS מופעל</b>, ואפס הרשאות למפתח הציבורי — הכתיבה מהשרת בלבד. מתג ב-.env מחליף בין מקומי לענן, ואם החיבור נכשל יש נפילה חיננית ל-SQLite.</p></div>
       <div class="card l" data-anim><div class="ico">◉</div><h3>Computer Vision</h3><p>העלאת תמונה שמעשירה את האנמנזה: בדיקת איכות ומאפיינים מדידים ב-<b>Pillow+numpy</b>, ותיאור במודל ראייה. <b>מעשיר תשאול ואינו אבחון</b>; התמונה אינה נשמרת.</p></div>
     </div>
     <div class="note" data-anim style="margin-top:16px"><span class="k">עקרון מנחה:</span><p>כל הרחבה יושבת <b>מעל</b> תשתית שכבר עובדת ונבדקת — ולכן אף אחת מהן לא דורשת לשנות את צוות הסוכנים, את ה-RAG או את סכמת הלוג.</p></div>

@@ -65,6 +65,7 @@ from dashboard.ui import (  # noqa: E402
     sidebar_filters,
     sidebar_footer,
     sidebar_sibling_link,
+    source_label,
 )
 from storage.turn_log import reset_log  # noqa: E402
 
@@ -83,8 +84,8 @@ def main() -> None:
         st.divider()
         with st.expander("🗑️ אזור מנהל — איפוס הלוג"):
             st.warning(
-                "מחיקת **כל** הרשומות מהקובץ הנבחר — פעולה סופית שאין "
-                "ממנה חזרה.",
+                "מחיקת **כל** הרשומות ממקור הנתונים הנבחר — פעולה סופית "
+                "שאין ממנה חזרה.",
                 icon="⚠️",
             )
             confirmed = st.checkbox("אני מבין/ה שהמחיקה סופית")
@@ -95,7 +96,8 @@ def main() -> None:
                 deleted = reset_log(db_path=db_path)
                 st.cache_data.clear()
                 st.session_state["reset_message"] = (
-                    f"הלוג אופס: נמחקו {deleted} רשומות מ-{Path(db_path).name}."
+                    f"הלוג אופס: נמחקו {deleted} רשומות מ-"
+                    f"{source_label(db_path)}."
                 )
                 st.rerun()
 

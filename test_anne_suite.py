@@ -801,6 +801,560 @@ def run_env_checks() -> None:
               plan=("1", "4"))
 
 
+# ── שקף 17: backend הלוג — SQLite מקומי מול Supabase (Postgres) ──────────
+class _FakePostgres:
+    """
+    Postgres מדומה — המינימום שהשכבה שלנו באמת מבקשת ממנו.
+
+    כל ה-SQL של supabase_backend עובר דרך אובייקט חיבור עם שתי מתודות
+    (execute / execute_many), ולכן אפשר להזריק כאן מימוש שמאחסן בזיכרון:
+    **אין בבדיקות האלה שום קריאת רשת ושום שרת Postgres**. מה שנבדק הוא
+    מה שבאמת שלנו — מיפוי 26 העמודות, שם הטבלה שנבחר, ה-DDL שנשלח
+    והנפילה החיננית; מה ש-Postgres עושה עם ה-SQL הוא לא באחריותנו.
+    """
+
+    def __init__(self) -> None:
+        self.tables: dict[str, list[dict]] = {}
+        self.statements: list[str] = []
+
+    @staticmethod
+    def _table_of(sql: str) -> str | None:
+        found = re.search(r"public\.(turns(?:_synthetic)?)", sql)
+        return found.group(1) if found else None
+
+    def factory(self):
+        from contextlib import contextmanager
+
+        @contextmanager
+        def open_connection():
+            yield self
+
+        return open_connection()
+
+    def execute(self, sql: str, params: dict | None = None) -> list[dict]:
+        from storage import pg_schema
+
+        self.statements.append(sql)
+        low = " ".join(sql.lower().split())
+        if low.startswith("select column_name"):
+            table = (params or {}).get("table")
+            columns = ["id", *pg_schema.PG_COLUMNS] if table in self.tables else []
+            return [{"column_name": name} for name in columns]
+        table = self._table_of(sql)
+        if low.startswith("create table"):
+            self.tables.setdefault(table, [])
+            return []
+        if low.startswith("insert into"):
+            self.tables.setdefault(table, []).append(dict(params or {}))
+            return []
+        if low.startswith("select count(*)"):
+            return [{"rows": len(self.tables.get(table, []))}]
+        if low.startswith("delete from"):
+            self.tables[table] = []
+            return []
+        if low.startswith("select id"):
+            return [{"id": index + 1, **row}
+                    for index, row in enumerate(self.tables.get(table, []))]
+        if low.split()[0] in ("alter", "create", "comment", "revoke", "grant"):
+            return []
+        raise AssertionError(f"SQL לא מוכר בבדיקה: {sql[:70]}")
+
+    def execute_many(self, sql: str, rows) -> None:
+        for row in rows:
+            self.execute(sql, row)
+
+
+def run_log_backend_checks() -> None:
+    """
+    שכבת ה-backend של הלוג: אותו ממשק מעל SQLite ומעל Supabase.
+
+    כל הבדיקות כאן חינמיות ואופליין לחלוטין — Supabase נבדק דרך חיבור
+    מדומה (_FakePostgres), ואף לא בקשת רשת אחת יוצאת. משתני הסביבה
+    מוחזרים בדיוק לערכם, וה-backend מוחזר ל-sqlite בסוף, כדי שהבדיקות
+    שרצות אחר כך (דשבורד, ML, שרת) לא יראו מתג שהוזז.
+    """
+    import inspect
+    import logging
+    import shutil
+    import tempfile
+
+    from storage import backend as log_backend
+    from storage import pg_schema, supabase_backend
+    from storage import turn_log as log_module
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="anne_backend_test_"))
+    watched = ("ANNE_LOG_BACKEND", "ANNE_LOG_TABLE", "ANNE_LOG_DB",
+               "SUPABASE_DB_URL", "SUPABASE_DB_URL_POOLER", "SUPABASE_URL",
+               "SUPABASE_SERVICE_KEY")
+    saved_env = {name: os.environ.get(name) for name in watched}
+
+    # מאזין שאוסף את אזהרות שכבת ה-storage — כדי לאמת שנפילה חיננית
+    # *מודיעה* עליה ולא נופלת בשקט.
+    class _Collector(logging.Handler):
+        def __init__(self) -> None:
+            super().__init__()
+            self.messages: list[str] = []
+
+        def emit(self, record: logging.LogRecord) -> None:
+            self.messages.append(record.getMessage())
+
+    collector = _Collector()
+    log_backend.logger.addHandler(collector)
+
+    # הבדיקות מוסרות את קובץ הלוג הסינתטי *האמיתי* מהדרך. הסיבה קונקרטית:
+    # הבדיקות מוסרות שמות טבלה ("turns_synthetic") כיעד, ואם נפילה חיננית
+    # מתרחשת תוך כדי — בדיוק מה שקרה בבדיקת מוטציה — היעד הזה מתורגם
+    # במצב SQLite לקובץ anne_log_synthetic.db שבשורש הפרויקט, ורשומת
+    # בדיקה נכתבת לדאטה של המפתח. ANNE_LOG_DB מכסה את הלוג החי; זה מכסה
+    # את הסינתטי. שני המקורות מוחזרים ב-finally.
+    original_table_paths = dict(log_backend._TABLE_TO_PATH)
+    log_backend._TABLE_TO_PATH[log_backend.SYNTHETIC_TABLE] = (
+        tmp_dir / "synthetic_target.db"
+    )
+
+    def _set_env(**values: str | None) -> None:
+        for name, value in values.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+    def _use_supabase(fake: _FakePostgres | None, **extra: str | None) -> None:
+        """מצב supabase עם חיבור מדומה (או בלי חיבור בכלל, ל-fake=None)."""
+        log_backend.reset_backend_state()
+        supabase_backend.set_connection_factory(fake.factory if fake else None)
+        values: dict[str, str | None] = {
+            "ANNE_LOG_BACKEND": "supabase",
+            "ANNE_LOG_TABLE": None,
+            "ANNE_LOG_DB": str(tmp_dir / "fallback.db"),
+            "SUPABASE_DB_URL": "postgresql://postgres:pw@"
+                               "db.demo.supabase.co:5432/postgres",
+        }
+        values.update(extra)
+        _set_env(**values)
+
+    try:
+        # ── (1) הממשק זהה בשני ה-backends, והחתימות לא זזו ────────────────
+        # ההבטחה המרכזית של השינוי: המתג נוסף *מתחת* ל-API, ולכן שמות
+        # הפרמטרים של כל פונקציה נבדקים אחד-לאחד. שינוי חתימה כאן הוא
+        # שינוי שובר עבור crew/pipeline.py, dashboard/ ו-ml/ גם יחד.
+        import storage as storage_pkg
+
+        exported = (
+            "init_db", "log_turn", "reset_log", "fetch_turns",
+            "record_from_turn", "scrub_record", "write_record",
+            "COLUMNS", "COLUMN_NAMES", "SCHEMA_VERSION", "TOPICS",
+            "TOOL_COLUMNS", "CONSULT_PATHS",
+        )
+        missing_exports = [
+            name for name in exported
+            if not hasattr(log_module, name) or not hasattr(storage_pkg, name)
+        ]
+        expected_signatures = {
+            "init_db": ["db_path"],
+            "fetch_turns": ["db_path", "limit"],
+            "write_record": ["record", "db_path"],
+            "write_records": ["records", "db_path"],
+            "reset_log": ["db_path"],
+            "log_turn": ["result", "session_id", "turn_index", "user_message",
+                         "ts_utc", "db_path"],
+            "record_from_turn": ["result", "session_id", "turn_index",
+                                 "user_message", "ts_utc"],
+            "scrub_record": ["record"],
+        }
+        signature_drift = {
+            name: list(inspect.signature(getattr(log_module, name)).parameters)
+            for name, params in expected_signatures.items()
+            if list(inspect.signature(
+                getattr(log_module, name)).parameters) != params
+        }
+        add_check(("17",),
+                  "backend הלוג: הממשק והחתימות זהים בשני ה-backends"
+                  + (f" — חסר: {missing_exports}" if missing_exports else "")
+                  + (f" — חתימה שזזה: {signature_drift}"
+                     if signature_drift else ""),
+                  not missing_exports and not signature_drift,
+                  plan=("11", "18"))
+
+        # ── (2) הסכמה: 26 העמודות, אותו סדר, ושתי טבלאות ─────────────────
+        # pg_schema הוא התרגום *היחיד* של הסכמה ל-Postgres, ושומר הסף שלו
+        # (assert_matches_declared_schema) הופך עמודה חדשה בלוג לכישלון
+        # כאן — במקום ל-INSERT ששובר תור אמיתי.
+        # שומר הסף זורק SchemaMismatch כשהסכמות התפצלו. הבדיקה קולטת את
+        # החריגה ומדווחת עליה ככישלון — סוללת בדיקות צריכה להדפיס שורה
+        # אדומה, לא traceback שמפיל את שאר הבדיקות.
+        schema_error = ""
+        create_live = insert_live = ""
+        try:
+            pg_schema.assert_matches_declared_schema()
+            create_live = pg_schema.create_table_sql("turns")
+            insert_live = pg_schema.insert_sql("turns")
+        except pg_schema.SchemaMismatch as exc:
+            schema_error = str(exc)
+        insert_columns = re.search(r"\(([^)]*)\) values", insert_live)
+        insert_names = [name.strip() for name in
+                        (insert_columns.group(1) if insert_columns else "").split(",")]
+        column_order_in_ddl = [
+            line.split()[0] for line in create_live.splitlines()
+            if line.startswith("    ")
+        ]
+        try:
+            pg_schema.require_table("turns; drop table turns")
+            table_guard = False
+        except ValueError:
+            table_guard = True
+        add_check(("17",),
+                  f"סכמת Postgres: {len(pg_schema.PG_COLUMNS)} עמודות בדיוק "
+                  "כמו הסכמה המוצהרת (אותו סדר), INSERT על כל העמודות, "
+                  "ושם טבלה מחוץ לרשימה הסגורה נדחה"
+                  + (f" — {schema_error}" if schema_error else ""),
+                  not schema_error
+                  and list(pg_schema.PG_COLUMNS) == list(log_module.COLUMN_NAMES)
+                  and column_order_in_ddl == ["id", *log_module.COLUMN_NAMES]
+                  and insert_names == list(log_module.COLUMN_NAMES)
+                  and pg_schema.TABLES == ("turns", "turns_synthetic")
+                  and table_guard,
+                  plan=("11", "18"))
+
+        # ── (3) קובץ המיגרציה: זהה לסכמה, RLS ואיסור anon ────────────────
+        # הקובץ נוצר מ-pg_schema ולכן אינו יכול להתיישן: הבדיקה משווה את
+        # התוכן על הדיסק לפלט הפונקציה, ומאמתת שהאבטחה בפנים.
+        migration_text = pg_schema.MIGRATION_FILE.read_text(encoding="utf-8")
+        try:
+            migration_expected = pg_schema.migration_sql()
+        except pg_schema.SchemaMismatch:
+            migration_expected = ""      # הכישלון כבר דווח בבדיקה שלמעלה
+        security_ok = all(
+            phrase in migration_text
+            for phrase in (
+                "alter table public.turns enable row level security",
+                "alter table public.turns_synthetic enable row level security",
+                "revoke all on table public.turns from anon",
+                "revoke all on table public.turns_synthetic from anon",
+                "revoke all on table public.turns from authenticated",
+            )
+        )
+        add_check(("17",),
+                  "סקריפט המיגרציה (SQL Editor): זהה לסכמה שבקוד, שתי "
+                  "הטבלאות, RLS מופעל ו-anon נחסם מפורשות",
+                  bool(migration_expected)
+                  and migration_text == migration_expected
+                  and security_ok
+                  and all(name in migration_text
+                          for name in log_module.COLUMN_NAMES),
+                  plan=("11", "18"))
+
+        # ── (4) מסלול מלא מול Supabase מדומה — 26 העמודות נכתבות ─────────
+        fake = _FakePostgres()
+        _use_supabase(fake)
+        consult = SimpleNamespace(
+            reply_he="לשטוף את הפצע במים זורמים.", topic="wounds",
+            illustration_id="wound_cleaning", sources=["מד\"א — פצעים"],
+            filtered_sources=[], consulted=True, emergency=False, red_flags=[],
+            timings={"safety_gate": 1.5, "triage": 1.2, "consult_direct": 4.0,
+                     "compose": 2.0, "total": 7.5},
+            llm_calls=4, tool_usage={"search_first_aid_knowledge": 1},
+            image_used=False,
+        )
+        session_hex = "1a" * 16
+        logged = log_module.log_turn(consult, session_id=session_hex,
+                                    turn_index=1, user_message="נחתכתי באצבע")
+        rows_live = log_module.fetch_turns()
+        stored = fake.tables.get("turns", [{}])[0]
+        expected_record = log_module.scrub_record(log_module.record_from_turn(
+            consult, session_id=session_hex, turn_index=1,
+            user_message="נחתכתי באצבע",
+            ts_utc=rows_live[0]["ts_utc"] if rows_live else None,
+        ))
+        add_check(("17",),
+                  "Supabase: תור נכתב ונקרא דרך אותו API — כל 26 העמודות "
+                  "ממופות נכון, בלי אף עמודת טקסט חופשי",
+                  logged
+                  and list(stored) == list(log_module.COLUMN_NAMES)
+                  and stored == expected_record
+                  and len(rows_live) == 1
+                  and rows_live[0]["topic"] == "wounds"
+                  and rows_live[0]["consult_path"] == "direct"
+                  and rows_live[0]["id"] == 1
+                  and "לשטוף" not in " ".join(str(v) for v in stored.values()),
+                  plan=("11", "14", "18"))
+
+        # ── (5) המתג בוחר טבלה, לא חיבור ─────────────────────────────────
+        # אותו db_path משמעותי בשני ה-backends: קובץ ששמו סינתטי -> טבלה
+        # סינתטית, ולהפך. ANNE_LOG_TABLE קובע כשאין יעד מפורש, וטקסט
+        # חופשי (או שם טבלה מומצא) לא מגיע ל-SQL אלא נופל לברירת המחדל.
+        log_module.write_record(expected_record, db_path="turns_synthetic")
+        synthetic_rows = log_module.fetch_turns(
+            db_path=str(log_backend.SYNTHETIC_DB_PATH))
+        routing = {
+            "none": log_backend.resolve_target().table,
+            "table": log_backend.resolve_target("turns_synthetic").table,
+            "synthetic_file": log_backend.resolve_target(
+                str(log_backend.SYNTHETIC_DB_PATH)).table,
+            "live_file": log_backend.resolve_target(
+                str(log_backend.DEFAULT_DB_PATH)).table,
+            "free_text": log_backend.resolve_target("turns; drop table").table,
+        }
+        _set_env(ANNE_LOG_TABLE="turns_synthetic")
+        env_table = log_backend.resolve_target().table
+        _set_env(ANNE_LOG_TABLE=None)
+        # במצב SQLite אותם שמות טבלה ממופים בחזרה לקבצים המקבילים
+        log_backend.reset_backend_state()
+        _set_env(ANNE_LOG_BACKEND="sqlite", ANNE_LOG_DB=None)
+        # שם הטבלה הסינתטית ממופה לקובץ הסינתטי (ולא לחי) ולהפך. ההשוואה
+        # היא לפי *סוג* היעד ולא לנתיב מדויק, כי הקובץ הסינתטי הופנה כאן
+        # לתיקייה זמנית (ראה ההערה למעלה).
+        sqlite_mapping = (
+            log_backend.resolve_target("turns_synthetic").is_synthetic
+            and not log_backend.resolve_target("turns").is_synthetic
+            and log_backend.resolve_target("turns").path
+            == log_backend.DEFAULT_DB_PATH
+        )
+        _use_supabase(fake)
+        add_check(("17",),
+                  "מתג הנתונים בוחר טבלה ולא חיבור: turns / turns_synthetic, "
+                  "מיפוי דו-כיווני לקבצים, ANNE_LOG_TABLE קובע כברירת מחדל, "
+                  "וטקסט חופשי לא נכנס לשם הטבלה",
+                  routing == {"none": "turns", "table": "turns_synthetic",
+                              "synthetic_file": "turns_synthetic",
+                              "live_file": "turns", "free_text": "turns"}
+                  and env_table == "turns_synthetic"
+                  and sqlite_mapping
+                  and len(fake.tables.get("turns_synthetic", [])) == 1
+                  and len(synthetic_rows) == 1
+                  and len(fake.tables.get("turns", [])) == 1,
+                  plan=("11", "15", "18"))
+
+        # ── (6) המתג בדשבורד: אותן שתי תוויות, יעדים לפי ה-backend ───────
+        try:
+            from dashboard import ui as dash_ui_backend
+
+            supabase_choices = dash_ui_backend.db_choices()
+            supabase_labels = (
+                dash_ui_backend.source_label("turns"),
+                dash_ui_backend.source_label("turns_synthetic"),
+            )
+            log_backend.reset_backend_state()
+            _set_env(ANNE_LOG_BACKEND="sqlite")
+            sqlite_choices = dash_ui_backend.db_choices()
+            sqlite_label = dash_ui_backend.source_label(
+                tmp_dir / "anne_log.db")
+            _use_supabase(fake)
+            add_check(("17",),
+                      "דשבורד: אותו מתג (חי/סינתטי) מצביע על שתי טבלאות "
+                      "ב-Supabase ועל שני קבצים ב-SQLite, עם אותן תוויות",
+                      set(supabase_choices) == set(sqlite_choices)
+                      == {dash_ui_backend.LIVE_SOURCE_HE,
+                          dash_ui_backend.SYNTHETIC_SOURCE_HE}
+                      and supabase_choices[dash_ui_backend.LIVE_SOURCE_HE]
+                      == "turns"
+                      and supabase_choices[
+                          dash_ui_backend.SYNTHETIC_SOURCE_HE]
+                      == "turns_synthetic"
+                      and supabase_labels == ("Supabase · turns",
+                                              "Supabase · turns_synthetic")
+                      and sqlite_label == "anne_log.db"
+                      and all(str(path).endswith(".db")
+                              for path in sqlite_choices.values()),
+                      plan=("15", "16", "18"))
+            # ── הדשבורד במצב שבו Supabase מוגדר אך אינו זמין ──────────────
+            # זה המצב הראשון שכל מי שמגדיר Supabase נמצא בו (מחרוזת חיבור
+            # שעוד לא הושלמה), ולכן הוא נבדק מקצה לקצה: האפליקציה עולה,
+            # מציגה את הנתונים המקומיים, ואומרת על המסך שהחיבור נכשל
+            # במקום להעמיד פנים שהמספרים מהענן.
+            from storage.synthetic import generate_records
+
+            local_db = tmp_dir / "anne_log.db"
+            log_backend.reset_backend_state()
+            _set_env(ANNE_LOG_BACKEND="sqlite", ANNE_LOG_DB=str(local_db))
+            import random as _rng
+
+            log_module.write_records(generate_records(12, _rng.Random(11), 5),
+                                     db_path=local_db)
+            log_backend.reset_backend_state()
+            supabase_backend.set_connection_factory(None)
+            _set_env(ANNE_LOG_BACKEND="supabase", SUPABASE_DB_URL=None,
+                     ANNE_LOG_DB=str(local_db))
+            fallback_run = None
+            try:
+                from streamlit.testing.v1 import AppTest
+
+                fallback_run = AppTest.from_file(
+                    str(PROJECT_ROOT / "dashboard" / "app.py"),
+                    default_timeout=180,
+                )
+                fallback_run.run()
+                notes = [str(item.value) for item in fallback_run.caption]
+                # ריצה שנייה (כמו כל אינטראקציה ב-Streamlit): ההערה חייבת
+                # להישאר, ולא להופיע פעם אחת ולהיעלם
+                second = fallback_run.run()
+                notes_again = [str(item.value) for item in second.caption]
+                add_check(("17",),
+                          "דשבורד: Supabase מוגדר ואינו זמין — העמוד עולה על "
+                          "הנתונים המקומיים ומודיע על הנפילה גם בריצה השנייה",
+                          not fallback_run.exception
+                          and bool(fallback_run.metric)
+                          and any("Supabase" in note and "נכשל" in note
+                                  for note in notes)
+                          and any("Supabase" in note and "נכשל" in note
+                                  for note in notes_again),
+                          plan=("15", "18"))
+            except ImportError:
+                add_skip(("15",),
+                         "הדשבורד במצב נפילה חיננית מ-Supabase (AppTest)",
+                         "streamlit אינו מותקן בסביבה זו.")
+            _use_supabase(fake)
+        except ImportError as exc:
+            add_skip(("15",), "מתג מקור הנתונים בדשבורד מול שני ה-backends",
+                     f"תלויות הדשבורד חסרות בסביבה זו ({exc}).")
+
+        # ── (7) הגדרות חסרות -> SQLite, עם אזהרה ─────────────────────────
+        # זו הדרישה שהצ'אט תלוי בה: פרויקט Supabase שלא הוגדר (או שנפל)
+        # לא יכול להפיל תור. הבדיקה מאמתת שגם *נרשמה אזהרה* — נפילה
+        # שקטה לקובץ מקומי היא בדיוק סוג התקלה שמתגלה שבוע אחרי.
+        collector.messages.clear()
+        _use_supabase(fake, SUPABASE_DB_URL=None)
+        supabase_backend.set_connection_factory(None)   # אין חיבור בכלל
+        missing_names = log_backend.missing_supabase_settings()
+        fallback_logged = log_module.log_turn(
+            SimpleNamespace(reply_he="נפילה חיננית"),
+            session_id="2b" * 16, turn_index=1, user_message="בדיקה",
+        )
+        fallback_rows = log_module.fetch_turns()
+        missing_warning = " ".join(collector.messages)
+        add_check(("17",),
+                  "הגדרות Supabase חסרות: הלוג נופל ל-SQLite עם אזהרה בלוג, "
+                  "והתור נרשם מקומית ולא נאבד",
+                  missing_names == ["SUPABASE_DB_URL"]
+                  and fallback_logged
+                  and log_backend.active_backend() == "sqlite"
+                  and len(fallback_rows) == 1
+                  and "SQLite" in missing_warning
+                  and "SUPABASE_DB_URL" in missing_warning
+                  and log_backend.describe_target().startswith("SQLite"),
+                  plan=("11", "14", "18"))
+
+        # ── (8) חיבור שנכשל -> SQLite, בלי סוד באזהרה ────────────────────
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _broken_connection():
+            raise RuntimeError("connection refused")
+            yield  # pragma: no cover
+
+        collector.messages.clear()
+        log_backend.reset_backend_state()
+        secret_password = "s3cret-Pa55"
+        _set_env(
+            ANNE_LOG_BACKEND="supabase",
+            ANNE_LOG_DB=str(tmp_dir / "broken.db"),
+            SUPABASE_DB_URL=f"postgresql://postgres:{secret_password}"
+                            "@db.demo.supabase.co:5432/postgres",
+        )
+        supabase_backend.set_connection_factory(_broken_connection)
+        broken_logged = log_module.log_turn(
+            SimpleNamespace(reply_he="חיבור שנכשל"),
+            session_id="3c" * 16, turn_index=1, user_message="בדיקה",
+        )
+        broken_rows = log_module.fetch_turns()
+        broken_warning = " ".join(collector.messages)
+        add_check(("17",),
+                  "חיבור Supabase שנכשל: נפילה חיננית ל-SQLite עם אזהרה, "
+                  "בלי חריגה, ובלי שהסיסמה מופיעה בלוג",
+                  broken_logged
+                  and len(broken_rows) == 1
+                  and log_backend.active_backend() == "sqlite"
+                  and "connection refused" in broken_warning
+                  and secret_password not in broken_warning
+                  # אותה סיבה מוצגת גם בסרגל הצד של הדשבורד — סוד לא נכנס
+                  # לא ללוג ולא למסך
+                  and secret_password not in (log_backend.fallback_reason() or ""),
+                  plan=("11", "14", "18"))
+
+        # ── (9) URL-encoding לסיסמה במחרוזת החיבור ───────────────────────
+        # סיסמה שנוצרת ב-Supabase עשויה להכיל @ / : # ורווח — כל אחד מהם
+        # מפרק מחרוזת חיבור. הפירוק כאן ידני (חיתוך ב-@ האחרון) בדיוק
+        # בשביל זה, והקידוד אינו כפול כשהמשתמש הדביק מחרוזת מקודדת.
+        raw_password = "p@ss/w:rd #1"
+        normalized = supabase_backend.normalize_db_url(
+            f"postgresql://postgres:{raw_password}"
+            "@db.demo.supabase.co:5432/postgres"
+        )
+        already = supabase_backend.normalize_db_url(
+            "postgresql://postgres:a%40b@db.demo.supabase.co:5432/postgres"
+        )
+        displayed = supabase_backend.safe_display_url(normalized)
+        try:
+            supabase_backend.normalize_db_url("mysql://u:p@host/db")
+            scheme_guard = False
+        except supabase_backend.SupabaseConfigError:
+            scheme_guard = True
+        sqlalchemy_parsed = None
+        try:
+            from sqlalchemy.engine import make_url
+
+            sqlalchemy_parsed = make_url(normalized)
+        except ImportError:
+            pass
+        add_check(("17",),
+                  "מחרוזת החיבור: הסיסמה מקודדת ב-URL-encoding (בלי קידוד "
+                  "כפול), הדיאלקט psycopg, sslmode מושלם, והסיסמה מוסתרת "
+                  "בכל תצוגה",
+                  "p%40ss%2Fw%3Ard%20%231" in normalized
+                  and normalized.startswith("postgresql+psycopg://")
+                  and "db.demo.supabase.co:5432/postgres" in normalized
+                  and "sslmode=require" in normalized
+                  and "a%40b" in already and "%2540" not in already
+                  and raw_password not in displayed and "***" in displayed
+                  and scheme_guard
+                  # SQLAlchemy עצמו מפרק את המחרוזת בחזרה לסיסמה המקורית
+                  and (sqlalchemy_parsed is None
+                       or (sqlalchemy_parsed.password == raw_password
+                           and sqlalchemy_parsed.host
+                           == "db.demo.supabase.co")),
+                  plan=("18",))
+
+        # ── (10) Direct מול Transaction pooler ───────────────────────────
+        pooler_url = ("postgresql://postgres.demo:pw@"
+                      "aws-0-eu-central-1.pooler.supabase.com:6543/postgres")
+        direct_url = ("postgresql://postgres:pw@"
+                      "db.demo.supabase.co:5432/postgres")
+        pooler_options = supabase_backend.engine_options(pooler_url)
+        direct_options = supabase_backend.engine_options(direct_url)
+        readme_text = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+        module_source = inspect.getsource(supabase_backend)
+        add_check(("17",),
+                  "חיבור ישיר (5432) מול Transaction pooler (6543): מזוהה "
+                  "אוטומטית, מקבל הגדרות pgbouncer (בלי pool מקומי ובלי "
+                  "prepared statements), ומתועד ב-README",
+                  supabase_backend.is_pooler_url(pooler_url)
+                  and not supabase_backend.is_pooler_url(direct_url)
+                  and pooler_options["poolclass"] == "NullPool"
+                  and pooler_options["connect_args"]["prepare_threshold"] is None
+                  and direct_options["poolclass"] is None
+                  and direct_options["pool_pre_ping"] is True
+                  and "6543" in readme_text
+                  and "SUPABASE_DB_URL_POOLER" in readme_text
+                  # SQLAlchemy ו-psycopg מיובאים עצלים בלבד (בתוך פונקציות),
+                  # כדי ש-import storage יעבוד גם בסביבה שאין בה אותם
+                  and "\nimport sqlalchemy" not in module_source
+                  and "\nfrom sqlalchemy" not in module_source,
+                  plan=("18",))
+    finally:
+        supabase_backend.set_connection_factory(None)
+        log_backend.logger.removeHandler(collector)
+        log_backend._TABLE_TO_PATH.update(original_table_paths)
+        log_backend.reset_backend_state()
+        for name, value in saved_env.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        # בדיקות האופליין ממשיכות ב-SQLite (ראה ההערה בראש run_offline).
+        os.environ["ANNE_LOG_BACKEND"] = "sqlite"
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 # ── שלדי ה-skip של תוכנית הבדיקות: רכיבים שטרם נבנו ─────────────────────
 def _run_credit_checks(client, token: str) -> None:
     """
@@ -1699,9 +2253,12 @@ def register_plan_skips() -> None:
              "סיווג מודע שלה; session_id האנונימי פר-שיחה נבדק כבר עכשיו.")
     add_skip(("18",),
              "ניהול משתמשים ב-Supabase (הרשמה, התחברות, קישור שיחות)",
-             "Supabase טרם נבנה (שלב עתידי) — שלד הבדיקה ימולא כשתוקם סכמת "
-             "המשתמשים. בינתיים קיים שער הדגמה זמני לאזור המנהל (משתמש קבוע "
-             "בקוד, טוקן בזיכרון) — הוא נבדק במצב אופליין.")
+             "Supabase Auth טרם נבנה (שלב עתידי) — שלד הבדיקה ימולא כשתוקם "
+             "סכמת המשתמשים. מה שכן נבדק כבר עכשיו הוא החצי האחר של הנקודה: "
+             "לוג השיחות מעל ה-Postgres של Supabase (סכמה, RLS ואיסור anon, "
+             "מתג הטבלאות ונפילה חיננית ל-SQLite) — כולו אופליין, מול חיבור "
+             "מדומה. בינתיים אזור המנהל נשען על שער הדגמה זמני (משתמש יחיד "
+             "מ-.env, טוקן בזיכרון) — גם הוא נבדק במצב אופליין.")
     add_skip(("19",),
              "חיבור לכלים חיצוניים דרך MCP / Composio",
              "MCP/Composio טרם חוברו (שלב עתידי) — שלד הבדיקה ימולא כשיוגדר "
@@ -1811,6 +2368,11 @@ def run_offline() -> int:
     ו-fallback, נאמנות מקורות והגנות הקוד. מחזיר exit code (0 = הכול עבר).
     """
     os.environ.setdefault("OPENAI_API_KEY", "sk-dummy")
+    # כל בדיקות האופליין רצות על SQLite, גם כשה-.env של המפתח מכוון
+    # ל-Supabase: בדיקה חינמית לא נוגעת ברשת ולא כותבת לענן. הקביעה כאן
+    # (ולא setdefault) גוברת על .env — load_dotenv אינו דורס משתנה שכבר
+    # קיים בסביבה. בדיקות ה-backend עצמן מחליפות את המתג ומחזירות אותו.
+    os.environ["ANNE_LOG_BACKEND"] = "sqlite"
 
     import inspect
 
@@ -2721,6 +3283,92 @@ def run_offline() -> int:
               and first.get("image_attached") == 1
               and second.get("image_attached") == 0,
               plan=("11", "14"))
+    # ── מוני הכלים: השמות ש-crew/ סופר מול מפתחות TOOL_COLUMNS ──────────
+    # הבדיקה שמעל מוודאת שהמיפוי עובד, אבל היא נוקבת בשם הכלי כמחרוזת
+    # בשני הצדדים — ולכן שינוי שם ב-crew/tools.py היה עובר אותה בשלום
+    # וממשיך לעבור אותה לנצח, בזמן שבפועל כל שליפת RAG נופלת בשקט
+    # ל-tools_other (ערך תקין, עמודה שגויה: שום דבר לא נשבר, הדשבורד
+    # פשוט מראה 0 שליפות). לכן כאן לא כותבים את השם אלא **קוראים אותו
+    # מהמקור**: ast על crew/tools.py ו-crew/pipeline.py, כל
+    # record_tool_use שיש בהם, והשוואת הקבוצה למפתחות TOOL_COLUMNS.
+    # ast ולא import — crew גורר את crewai (וגם דורש מפתח API), והבדיקה
+    # הזו חייבת להישאר חינמית ומיידית, כמו שאר בדיקות שקף 17.
+    import ast as _ast
+
+    from storage.turn_log import TOOL_COLUMNS
+
+    def _recorded_tool_names(paths: list[Path]) -> tuple[set[str], list[str]]:
+        """
+        שמות הכלים שנרשמים בפועל דרך record_tool_use, לפי הקוד עצמו.
+
+        שני מקרים: מחרוזת מפורשת, ו-``record_tool_use(self.name)`` בתוך
+        מחלקת כלי — שם מטפסים להורה ולוקחים את תכונת ``name`` שלה.
+        ארגומנט שאי אפשר לפענח סטטית מוחזר כ"לא נפתר" ומפיל את הבדיקה
+        במקום להיעלם בשקט.
+        """
+        found: set[str] = set()
+        unresolved: list[str] = []
+        for path in paths:
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+            parents = {
+                child: parent
+                for parent in _ast.walk(tree)
+                for child in _ast.iter_child_nodes(parent)
+            }
+            class_attr: dict[_ast.ClassDef, str] = {}
+            for node in _ast.walk(tree):
+                if not isinstance(node, _ast.ClassDef):
+                    continue
+                for stmt in node.body:
+                    target = getattr(stmt, "target", None)
+                    if (isinstance(stmt, _ast.AnnAssign)
+                            and isinstance(target, _ast.Name)
+                            and target.id == "name"
+                            and isinstance(stmt.value, _ast.Constant)
+                            and isinstance(stmt.value.value, str)):
+                        class_attr[node] = stmt.value.value
+            for node in _ast.walk(tree):
+                if not (isinstance(node, _ast.Call)
+                        and isinstance(node.func, _ast.Name)
+                        and node.func.id == "record_tool_use"
+                        and node.args):
+                    continue
+                arg = node.args[0]
+                if isinstance(arg, _ast.Constant) and isinstance(arg.value, str):
+                    found.add(arg.value)
+                    continue
+                resolved = None
+                if (isinstance(arg, _ast.Attribute) and arg.attr == "name"
+                        and isinstance(arg.value, _ast.Name)
+                        and arg.value.id == "self"):
+                    walker = node
+                    while walker in parents:
+                        walker = parents[walker]
+                        if isinstance(walker, _ast.ClassDef):
+                            resolved = class_attr.get(walker)
+                            break
+                if resolved:
+                    found.add(resolved)
+                else:
+                    unresolved.append(f"{path.name}:{node.lineno}")
+        return found, unresolved
+
+    recorded_names, unresolved_names = _recorded_tool_names(
+        [PROJECT_ROOT / "crew" / "tools.py", PROJECT_ROOT / "crew" / "pipeline.py"]
+    )
+    mapping_ok = (not unresolved_names) and recorded_names == set(TOOL_COLUMNS)
+    mapping_label = "מוני הכלים: שמות הכלים שנרשמים ב-crew/ זהים למפתחות TOOL_COLUMNS"
+    if not mapping_ok:
+        missing = sorted(recorded_names - set(TOOL_COLUMNS))
+        extra = sorted(set(TOOL_COLUMNS) - recorded_names)
+        mapping_label += (
+            f" (נרשמים ואינם ממופים={missing or 'אין'} · "
+            f"ממופים ואינם נרשמים={extra or 'אין'}"
+            + (f" · לא נפתרו={unresolved_names}" if unresolved_names else "")
+            + ")"
+        )
+    add_check(("17",), mapping_label, mapping_ok, plan=("11",))
+
     # פרטיות: אף מילה מהודעת המשתמש או מהתשובה לא הגיעה ל-DB — נשמרים
     # אורכים ומונים בלבד (הסכמה עצמה לא מכילה שדה שמסוגל להכיל אותן).
     stored_text = " ".join(str(v) for row in rows for v in row.values())
@@ -2885,6 +3533,8 @@ def run_offline() -> int:
               and "session_id" in inspect.getsource(ChatSession.__init__),
               plan=("14",))
     shutil.rmtree(log_dir, ignore_errors=True)
+
+    run_log_backend_checks()
 
     # ── שקף 17: דשבורד הלוג (dashboard/) — שכבת נתונים, UI וכפתור מנהל ──
     # מדולג בחן אם תלויות הדשבורד (streamlit/pandas) אינן מותקנות —

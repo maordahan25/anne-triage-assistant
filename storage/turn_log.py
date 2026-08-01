@@ -1,5 +1,5 @@
 """
-שכבת לוג השיחות האנונימית של "אן" — SQLite דרך ספריית התקן בלבד (sqlite3).
+שכבת לוג השיחות האנונימית של "אן" — SQLite מקומי או Postgres של Supabase.
 
 כל תור-שיחה נרשם כרשומה מובנית אחת בטבלת turns — בסיס לניתוח נתונים,
 לדשבורד עתידי ולמודל חיזוי. פרטיות מובנית (privacy by design) בשלוש שכבות:
@@ -26,27 +26,71 @@ API:
                                (אידמפוטנטי; ראה _migrate)
     log_turn(result, ...)      רישום TurnResult — best-effort, לעולם לא זורק
     write_record(record, ...)  כתיבת רשומה גולמית — קפדני (זורק), תמיד דרך scrub
-    reset_log()                מחיקת כל הרשומות (כפתור המנהל העתידי)
+    write_records(records, ...) אותו דבר לרשומות רבות, בטרנזקציה אחת
+    reset_log()                מחיקת כל הרשומות (כפתור המנהל בדשבורד)
     fetch_turns()              קריאת רשומות (לבדיקות ולדשבורד)
 
-נתיב הקובץ: anne_log.db בשורש הפרויקט (לא בבקרת גרסאות — ראה .gitignore);
-ניתן לעקיפה בפרמטר db_path או במשתנה הסביבה ANNE_LOG_DB.
+**שני backends, ממשק אחד.** מאז חיבור Supabase יש לסכמה הזו שני מימושים:
+SQLite מקומי (ברירת המחדל, ספריית התקן בלבד) ו-Postgres של Supabase. שום
+חתימה כאן לא השתנתה: הבחירה יושבת *מתחת* לפונקציות, ב-storage/backend.py
+(המתג ANNE_LOG_BACKEND) וב-storage/supabase_backend.py (החיבור). לכל
+פונקציה יש נקודת פענוח אחת — ``_target(db_path)`` — ומשם והלאה או SQLite
+או Supabase. הגדרות חסרות, חבילה חסרה או חיבור שנכשל **אינם מפילים דבר**:
+הלוג חוזר ל-SQLite המקומי עם אזהרה אחת ללוג (ראה fallback_to_sqlite).
+
+הפרמטר ``db_path`` הוא "איזה דאטה", לא בהכרח "איזה קובץ": נתיב קובץ
+(SQLite) או שם טבלה מהרשימה הסגורה turns / turns_synthetic (Supabase).
+קובץ ששמו מכיל synthetic ממופה לטבלה הסינתטית ולהפך, כך שאותה קריאה
+עובדת בשני ה-backends. נתיב ברירת המחדל: anne_log.db בשורש הפרויקט (לא
+בבקרת גרסאות), עם עקיפה ב-db_path או ב-ANNE_LOG_DB.
 """
 from __future__ import annotations
 
 import math
-import os
 import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DB_PATH = PROJECT_ROOT / "anne_log.db"
-# עקיפת נתיב הקובץ במשתנה סביבה — לבדיקות ולסביבות נפרדות.
-ENV_DB_VAR = "ANNE_LOG_DB"
+from .backend import (  # שכבת המתג: קונפיגורציה טהורה, בלי sqlalchemy ובלי רשת
+    BACKEND_SQLITE,
+    BACKEND_SUPABASE,
+    BACKENDS,
+    DEFAULT_DB_PATH,
+    ENV_BACKEND_VAR,
+    ENV_DB_VAR,
+    ENV_TABLE_VAR,
+    LIVE_TABLE,
+    PROJECT_ROOT,
+    SYNTHETIC_DB_PATH,
+    SYNTHETIC_TABLE,
+    TABLES,
+    Target,
+    active_backend,
+    describe_target,
+    fallback_to_sqlite,
+    resolve_target,
+    sqlite_path_for,
+)
+
+# PROJECT_ROOT / DEFAULT_DB_PATH / ENV_DB_VAR הוגדרו כאן לפני פיצול שכבת
+# ה-backend, ונשארים מיוצאים מכאן כי dashboard/, ml/ והבדיקות מייבאים
+# אותם מ-storage.turn_log; מקור האמת שלהם עבר ל-backend.py.
+__all__ = [
+    # הסכמה ואוצר המילים
+    "COLUMNS", "COLUMN_NAMES", "SCHEMA_VERSION", "TOPICS", "TOOL_COLUMNS",
+    "CONSULT_PATHS", "Column",
+    # ה-API של הלוג
+    "init_db", "log_turn", "write_record", "write_records", "reset_log",
+    "fetch_turns", "record_from_turn", "scrub_record",
+    # שכבת ה-backend (מיוצאת מכאן לנוחות הקוראים הקיימים)
+    "PROJECT_ROOT", "DEFAULT_DB_PATH", "SYNTHETIC_DB_PATH", "ENV_DB_VAR",
+    "ENV_BACKEND_VAR", "ENV_TABLE_VAR", "LIVE_TABLE", "SYNTHETIC_TABLE",
+    "TABLES", "BACKENDS", "BACKEND_SQLITE", "BACKEND_SUPABASE",
+    "Target", "active_backend", "describe_target", "resolve_target",
+]
 
 # 1 -> 2: נוספה עמודת image_attached (דגל 0/1 — האם המשתמש צירף תמונה
 # לתור). רשומות ישנות נשארות בגרסה 1 וערכן בעמודה 0, וזה נכון עובדתית:
@@ -264,11 +308,42 @@ _INSERT_SQL = "INSERT INTO turns ({}) VALUES ({})".format(
 
 
 def _resolve_db_path(db_path: str | Path | None = None) -> Path:
-    """נתיב הקובץ: פרמטר מפורש > משתנה סביבה ANNE_LOG_DB > ברירת המחדל."""
-    if db_path is not None:
-        return Path(db_path)
-    env_path = os.getenv(ENV_DB_VAR, "").strip()
-    return Path(env_path) if env_path else DEFAULT_DB_PATH
+    """
+    נתיב קובץ ה-SQLite: פרמטר מפורש > ANNE_LOG_DB > ברירת המחדל.
+
+    נשאר כאן כשם מקומי (וכנקודת עיגון לקוראים ותיקים) אחרי שהמימוש עבר
+    ל-backend.sqlite_path_for — שם הוא משותף גם לפענוח היעד וגם לנפילה
+    החיננית, כדי שלא יהיו שתי דרכים שונות לבחור את אותו קובץ.
+    """
+    return sqlite_path_for(db_path)
+
+
+def _target(db_path: str | Path | None = None) -> Target:
+    """
+    היעד בפועל לפעולה הזו — נקודת הפענוח **היחידה** של כל הפונקציות כאן.
+
+    במצב Supabase נבדק כאן גם שהחיבור והטבלה מוכנים (פעם אחת בתהליך);
+    כשל בהגדרות, בחבילות או בחיבור מוחזר כיעד SQLite עם אזהרה אחת ללוג —
+    כך שאף קורא לא צריך לדעת על שני ה-backends, ותקלה בענן אינה יכולה
+    להפיל שיחה. הייבוא של supabase_backend עצל בכוונה: הוא גורר את
+    SQLAlchemy, ו-`import storage` חייב לעבוד גם בלעדיו.
+    """
+    target = resolve_target(db_path)
+    if not target.is_supabase:
+        return target
+    try:
+        from . import supabase_backend
+
+        supabase_backend.ensure_ready(target)
+        return target
+    except Exception as exc:
+        return fallback_to_sqlite(f"{type(exc).__name__}: {exc}",
+                                  db_path=db_path, table=target.table)
+
+
+def _sqlite_conn(path: Path) -> sqlite3.Connection:
+    """חיבור SQLite לקובץ נתון (אחרי שהטבלה כבר הוקמה)."""
+    return sqlite3.connect(path, timeout=5.0)
 
 
 def _migrate(conn: sqlite3.Connection) -> list[str]:
@@ -294,11 +369,10 @@ def _migrate(conn: sqlite3.Connection) -> list[str]:
     return added
 
 
-def init_db(db_path: str | Path | None = None) -> Path:
-    """יצירת קובץ הלוג, הטבלה והאינדקסים אם אינם קיימים. מחזיר את הנתיב."""
-    path = _resolve_db_path(db_path)
+def _init_sqlite(path: Path) -> Path:
+    """יצירת קובץ ה-SQLite, הטבלה והאינדקסים אם אינם קיימים."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=5.0)
+    conn = _sqlite_conn(path)
     try:
         with conn:
             conn.execute(_CREATE_TABLE_SQL)
@@ -308,6 +382,20 @@ def init_db(db_path: str | Path | None = None) -> Path:
     finally:
         conn.close()
     return path
+
+
+def init_db(db_path: str | Path | None = None) -> Path | str:
+    """
+    יצירת הלוג אם אינו קיים (אידמפוטנטי). מחזיר את זהות היעד בפועל.
+
+    ב-SQLite זהו נתיב הקובץ (כמו קודם); ב-Supabase שם הטבלה — ולכן
+    ``Path | str``. מי שצריך את היעד המלא (backend + טבלה + נתיב) יקרא
+    ל-resolve_target/describe_target.
+    """
+    target = _target(db_path)
+    if target.is_supabase:
+        return target.table
+    return _init_sqlite(target.path)
 
 
 def scrub_record(record: dict) -> dict:
@@ -402,19 +490,47 @@ def write_record(record: dict, db_path: str | Path | None = None) -> None:
 
     קפדני בכוונה (זורק על שדה זהות פסול או כשל DB) — למחולל הדאטה הסינתטי
     ולבדיקות, שם כשל צריך להיות רועש. ה-pipeline משתמש ב-log_turn הסלחני.
-    init_db בכל כתיבה הוא זול (CREATE IF NOT EXISTS) והופך את הלוג
-    ל"מרפא-עצמו" אם הקובץ נמחק תוך כדי ריצה.
+    הכנת היעד בכל כתיבה זולה (CREATE IF NOT EXISTS ב-SQLite, ובדיקה
+    מוטמעת בתהליך ב-Supabase) והופכת את הלוג ל"מרפא-עצמו" אם הקובץ נמחק
+    תוך כדי ריצה.
     """
-    clean = scrub_record(record)
-    path = init_db(db_path)
-    conn = sqlite3.connect(path, timeout=5.0)
+    write_records([record], db_path=db_path)
+
+
+def write_records(
+    records: Iterable[dict], db_path: str | Path | None = None
+) -> int:
+    """
+    כתיבת רשומות רבות בטרנזקציה אחת. מחזיר כמה נכתבו.
+
+    כל הרשומות עוברות scrub_record **לפני** שנפתח חיבור: רשומה פסולה
+    נכשלת רועש ולא משאירה כתיבה חלקית. במחולל הדאטה הסינתטי זה גם שיפור
+    מהותי — קודם נפתח חיבור לכל רשומה, ומול Postgres מרוחק זה היה 500
+    הלוך-חזור לזריעה אחת.
+    """
+    clean = [scrub_record(record) for record in records]
+    if not clean:
+        return 0
+    target = _target(db_path)
+    if target.is_supabase:
+        try:
+            from . import supabase_backend
+
+            return supabase_backend.insert_records(target, clean)
+        except Exception as exc:
+            target = fallback_to_sqlite(f"{type(exc).__name__}: {exc}",
+                                        db_path=db_path, table=target.table)
+    path = _init_sqlite(target.path)
+    conn = _sqlite_conn(path)
     try:
         with conn:
-            conn.execute(
-                _INSERT_SQL, tuple(clean[name] for name in COLUMN_NAMES)
+            conn.executemany(
+                _INSERT_SQL,
+                [tuple(row[name] for name in COLUMN_NAMES) for row in clean],
             )
     finally:
         conn.close()
+    return len(clean)
 
 
 def log_turn(
@@ -429,8 +545,11 @@ def log_turn(
     """
     רישום תור-שיחה אחד מ-TurnResult — נקודת הכניסה של ה-pipeline.
 
-    best-effort במוצהר: כל חריגה (רשומה פסולה, דיסק נעול, נתיב שבור)
-    נבלעת ומוחזר False — הלוג לעולם לא מפיל את השיחה. הצלחה -> True.
+    best-effort במוצהר: כל חריגה (רשומה פסולה, דיסק נעול, נתיב שבור,
+    Supabase שאינו מגיב) נבלעת ומוחזר False — הלוג לעולם לא מפיל את
+    השיחה. הצלחה -> True. שימו לב שכשל Supabase כבר טופל שכבה אחת
+    למטה (נפילה חיננית ל-SQLite), ולכן False כאן מסמן בעיה ברשומה או
+    בדיסק המקומי, לא בענן.
     """
     try:
         record = record_from_turn(
@@ -448,11 +567,23 @@ def log_turn(
 
 def reset_log(db_path: str | Path | None = None) -> int:
     """
-    מחיקת כל הרשומות (כפתור המנהל העתידי). מחזיר כמה רשומות נמחקו.
-    VACUUM אחרי המחיקה מכווץ את הקובץ — מחיקה פיזית, לא רק סימון עמודים.
+    מחיקת כל הרשומות (כפתור המנהל בדשבורד). מחזיר כמה רשומות נמחקו.
+
+    ב-SQLite מריצים VACUUM אחרי המחיקה — מכווץ את הקובץ, כלומר מחיקה
+    פיזית ולא רק סימון עמודים פנויים. ב-Postgres אין מה לעשות מקבילית:
+    autovacuum מטפל בשטח בעצמו, ו-VACUUM שם אינו נתמך בתוך טרנזקציה.
     """
-    path = init_db(db_path)
-    conn = sqlite3.connect(path, timeout=5.0)
+    target = _target(db_path)
+    if target.is_supabase:
+        try:
+            from . import supabase_backend
+
+            return supabase_backend.delete_all(target)
+        except Exception as exc:
+            target = fallback_to_sqlite(f"{type(exc).__name__}: {exc}",
+                                        db_path=db_path, table=target.table)
+    path = _init_sqlite(target.path)
+    conn = _sqlite_conn(path)
     try:
         with conn:
             (before,) = conn.execute("SELECT COUNT(*) FROM turns").fetchone()
@@ -466,9 +597,18 @@ def reset_log(db_path: str | Path | None = None) -> int:
 def fetch_turns(
     db_path: str | Path | None = None, limit: int | None = None
 ) -> list[dict]:
-    """קריאת רשומות הלוג בסדר כרונולוגי (לבדיקות ולדשבורד העתידי)."""
-    path = init_db(db_path)
-    conn = sqlite3.connect(path, timeout=5.0)
+    """קריאת רשומות הלוג בסדר כרונולוגי (לבדיקות, לדשבורד ולמודל החיזוי)."""
+    target = _target(db_path)
+    if target.is_supabase:
+        try:
+            from . import supabase_backend
+
+            return supabase_backend.fetch_records(target, limit)
+        except Exception as exc:
+            target = fallback_to_sqlite(f"{type(exc).__name__}: {exc}",
+                                        db_path=db_path, table=target.table)
+    path = _init_sqlite(target.path)
+    conn = _sqlite_conn(path)
     conn.row_factory = sqlite3.Row
     try:
         sql = "SELECT * FROM turns ORDER BY id"

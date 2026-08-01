@@ -11,11 +11,19 @@ scrub_record + אילוצי ה-CHECK של הסכמה) — כך המחולל מש
 במסלול הישיר, topic=other נופל ל-crew ההיררכי (האיטי), חירום נדיר ועוצר
 את השיחה, ותורי ברכה/אנמנזה ללא ייעוץ. אין כאן שום טקסט — רק שדות מובנים.
 
+**גם ל-Supabase.** המחולל אינו יודע לאיזה backend הוא כותב, וזה בדיוק
+העניין: הוא קורא ל-write_records, ושכבת ה-backend מחליטה. כשהמתג
+ANNE_LOG_BACKEND=supabase, ``--db`` שנשאר בברירת המחדל (קובץ ששמו מכיל
+synthetic) ממופה אוטומטית לטבלה turns_synthetic; אפשר גם לנקוב בשם
+הטבלה במפורש. בסיום מודפס היעד **בפועל** — כך שנפילה חיננית ל-SQLite
+לא יכולה להיראות כמו זריעה מוצלחת לענן.
+
 הרצה (חינם, ללא LLM):
     python -m storage.synthetic                       # 200 תורים, seed=7
     python -m storage.synthetic --rows 500 --seed 42
-    python -m storage.synthetic --reset               # ניקוי הקובץ קודם
+    python -m storage.synthetic --reset               # ניקוי היעד קודם
     python -m storage.synthetic --db anne_log.db      # במפורש אל הלוג האמיתי
+    python -m storage.synthetic --db turns_synthetic  # טבלה ב-Supabase
 """
 from __future__ import annotations
 
@@ -24,14 +32,16 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from .turn_log import (
-    PROJECT_ROOT,
     SCHEMA_VERSION,
+    SYNTHETIC_DB_PATH,
+    describe_target,
     init_db,
     reset_log,
-    write_record,
+    write_records,
 )
 
-DEFAULT_SYNTH_DB = PROJECT_ROOT / "anne_log_synthetic.db"
+# ברירת המחדל: קובץ נפרד מהלוג האמיתי (או הטבלה הסינתטית, ב-Supabase).
+DEFAULT_SYNTH_DB = SYNTHETIC_DB_PATH
 
 _HEX = "0123456789abcdef"
 
@@ -200,7 +210,10 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--rows", type=int, default=200,
                         help="מספר תורי-שיחה לייצר (ברירת מחדל: 200)")
     parser.add_argument("--db", default=str(DEFAULT_SYNTH_DB),
-                        help="נתיב קובץ ה-DB (ברירת מחדל: anne_log_synthetic.db)")
+                        help="היעד: נתיב קובץ SQLite או שם טבלה ב-Supabase "
+                             "(turns / turns_synthetic). ברירת מחדל: "
+                             "anne_log_synthetic.db, שממופה ל-turns_synthetic "
+                             "כשה-backend הוא supabase")
     parser.add_argument("--seed", type=int, default=7,
                         help="seed לשחזוריות — אותו seed מייצר אותו דאטה")
     parser.add_argument("--days", type=int, default=30,
@@ -216,8 +229,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"נוקו {deleted} רשומות קיימות.")
 
     records = generate_records(args.rows, rng, args.days)
-    for record in records:
-        write_record(record, db_path=args.db)  # דרך scrub + אילוצי CHECK
+    # טרנזקציה אחת, דרך scrub + אילוצי ה-CHECK (אותו מסלול כמו תור אמיתי).
+    write_records(records, db_path=args.db)
 
     sessions = {record["session_id"] for record in records}
     emergencies = sum(record["emergency"] for record in records)
@@ -225,7 +238,9 @@ def main(argv: list[str] | None = None) -> None:
     for record in records:
         key = record["topic"] or ("emergency" if record["emergency"] else "no_consult")
         by_topic[key] = by_topic.get(key, 0) + 1
-    print(f"נכתבו {len(records)} תורים ב-{len(sessions)} שיחות אל: {args.db}")
+    # היעד *בפועל* (אחרי נפילה חיננית, אם הייתה) ולא זה שהתבקש.
+    print(f"נכתבו {len(records)} תורים ב-{len(sessions)} שיחות אל: "
+          f"{describe_target(args.db)}")
     print(f"  חירום: {emergencies} | פילוח: " + ", ".join(
         f"{key}={count}" for key, count in sorted(by_topic.items())
     ))
