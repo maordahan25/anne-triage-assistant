@@ -738,6 +738,54 @@ print(result.illustration_id)   # איור מאומת מהרשימה הסגור�
 print(result.sources)           # המקורות שצוטטו
 ```
 
+## בקרת גרסאות
+
+הפרויקט מנוהל ב-Git ומאוחסן ברפו **פרטי** ב-GitHub. שני ענפים, וזה כל התהליך:
+
+| ענף | תפקיד |
+| --- | --- |
+| `main` | הענף היציב — מה שמוצג ומודגם. ממזגים אליו רק מה שעובד. |
+| `dev` | ענף הפיתוח — כאן עובדים ומבצעים commit-ים שוטפים. |
+
+```bash
+git switch dev                 # לפתח כאן
+git add -A && git commit -m "…"
+git push
+
+git switch main                # כשהתכונה יציבה
+git merge dev
+git push
+```
+
+### הרצה אחרי clone
+
+שכפול הרפו אינו מספיק להרצה: שלושה תוצרים **אינם** בבקרת גרסאות בכוונה —
+מפתחות ה-API (`.env`), ה-Vector DB (`chroma_db/`, ~נבנה מקומית), קובצי הלוג
+(`anne_log*.db`) ומודלי החיזוי (`ml/models/`). לכן, אחרי clone:
+
+```bash
+git clone https://github.com/maor125/anne-triage-assistant.git
+cd anne-triage-assistant
+
+# 1. תלויות (שם הקובץ הוא llm_requirements.txt, לא requirements.txt)
+python -m pip install --prefer-binary -r llm_requirements.txt
+
+# 2. משתני סביבה — יוצרים .env מהתבנית וממלאים מפתח אמיתי
+cp .env.example .env
+#    OPENAI_API_KEY — חובה לשלב הסוכנים
+#    ADMIN_EMAIL / ADMIN_PASSWORD — לאזור המנהל (בלעדיהם אין כניסה)
+
+# 3. בניית ה-Vector DB — חובה, כי chroma_db/ אינו בבקרת גרסאות.
+#    בהרצה ראשונה יורד מודל ה-embedding (~2GB).
+python build_index.py
+
+# 4. אימות חינמי שהכול במקומו (ללא קריאות LLM)
+python test_anne_suite.py --offline
+```
+
+דאטה לדשבורד ולמודל החיזוי נבנה מקומית גם הוא, ורק אם צריך אותו:
+`python -m storage.synthetic --rows 500 --seed 42` ואז `python -m ml.train`.
+
 ## הערות סביבה
 
 - נבדק על **Python 3.12** (סביבת conda `anne_env`).
