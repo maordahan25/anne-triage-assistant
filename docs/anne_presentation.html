@@ -595,7 +595,7 @@ python-dotenv          <span class="c"># ניהול מפתחות</span>
 <section class="slide" data-sec="אמון ובטיחות" data-div="3">
   <div class="stage divider">
     <div class="big" data-anim>03</div>
-    <h2 data-anim>אמון, בטיחות והמשכיות</h2>
+    <h2 data-anim>אמון ובטיחות</h2>
     <p data-anim>מערכת רפואית נמדדת לא רק במה שהיא אומרת, אלא במה שהיא מסרבת לומר — ובאיך שמוכיחים שהיא עובדת.</p>
     <div class="rail" data-anim><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
   </div>
@@ -647,38 +647,10 @@ python-dotenv          <span class="c"># ניהול מפתחות</span>
     <div class="cards c4">
       <div class="card" data-anim><div class="ico">⚿</div><h3>ניהול סודות</h3><p>מפתח ה-LLM וקוד המנהל ב-<b>.env</b> בלבד, מוחרג ב-<b>.gitignore</b>; לצידו <b>.env.example</b> ציבורי כתבנית.</p></div>
       <div class="card g" data-anim><div class="ico">⛉</div><h3>לוג בלי PII</h3><p>הלוג שומר <b>רק שדות מובנים</b> — אין שדה טקסט-חופשי, ולכן אין מקום פיזי לפרט מזהה. בענן מופעל <b>RLS</b> ואין הרשאות למפתח הציבורי.</p></div>
-      <div class="card l" data-anim><div class="ico">☖</div><h3>המשכיות בלי זהות</h3><p>מזהה אקראי בדפדפן (כמו קוקי פונקציונלי, בלי מעקב) מחזיק את רצף השיחה — <b>והמזהה עצמו אינו נכתב ללוג</b>.</p></div>
+      <div class="card l" data-anim><div class="ico">☖</div><h3>שיחה בלי זהות</h3><p>מזהה אקראי בדפדפן מחזיק את רצף השיחה הנוכחית — <b>ואינו נכתב ללוג</b>. אין שם, אין טלפון, אין מה לקשר לאדם.</p></div>
       <div class="card r" data-anim><div class="ico">⛔</div><h3>Guardrails וגבולות</h3><p>דקסטר חוסם הסלמה מסוכנת ו-prompt injection; אן <b>לא מאבחנת ולא רושמת תרופות</b> — עזרה ראשונית והפניה בלבד.</p></div>
     </div>
     <div class="note" data-anim style="margin-top:16px"><span class="k">בקרת גישה:</span><p>בקרת הגישה לאזור המנהל מבוססת <b>משתמש מנהל יחיד</b> שפרטיו ב-.env — מתאים להיקף המערכת. עמידות להזרקת הנחיות נבדקת: בקשה למינון מוחזרת כהמלצה כללית, בלי מספרים.</p></div>
-  </div>
-</section>
-
-<!-- ============ 18. MEMORY ============ -->
-<section class="slide" data-sec="אמון ובטיחות">
-  <div class="stage">
-    <span class="eyebrow" data-anim><i class="n">8</i>זיכרון והמשכיות</span>
-    <h2 data-anim>לזכור את השיחה — לא את האדם</h2>
-    <div class="split">
-      <div class="cards" style="gap:12px">
-        <div class="card" data-anim><div class="ico">◔</div><h3>הקשר תוך שיחה</h3><p><b>ChatSession</b> שומר את מה שנאמר, כך שאן זוכרת לאורך כל השיחה: "שתיתי מעט היום" בתור השלישי מתחבר ל"הייתי בשמש" מהתור הראשון.</p></div>
-        <div class="card l" data-anim><div class="ico">◌</div><h3>מזהה אנונימי</h3><p>מזהה אקראי נוצר פעם אחת ונשמר בדפדפן (<b>localStorage</b>). השרת ממפה אותו לשיחה פעילה — ולא כותב אותו ללוג.</p></div>
-        <div class="card g" data-anim><div class="ico">↩</div><h3>שאלת מעקב</h3><p>בביקור חוזר אן פותחת ב"איך אתה מרגיש היום?" — משוב שמאפשר גם מעקב תוצאה מדווח-משתמש (descriptive, לא מחקר קליני).</p></div>
-      </div>
-      <div data-anim>
-        <div class="chat">
-          <p class="bub a">שלום, אני אן. ספרו לי מה מרגישים היום?</p>
-          <p class="bub u">יש לי כאב ראש מאז הצהריים, והייתי היום הרבה שעות בשמש</p>
-          <p class="bub a">זה יכול להיות סימן להתייבשות. שתה מים בלגימות קטנות, שב במקום קריר…</p>
-          <p class="bub u">שתיתי מעט מאוד היום, ויש סחרחורת קלה</p>
-          <p class="bub a">בוא נטפל בזה עכשיו — הנה השלבים להחזרת נוזלים, עם איור.</p>
-          <div class="pillrow">
-            <span class="pill ok">ההקשר נצבר בין התורים</span>
-            <span class="pill wait">ללא פרט מזהה אחד</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </section>
 

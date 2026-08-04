@@ -869,6 +869,219 @@ class _FakePostgres:
             self.execute(sql, row)
 
 
+def run_dashboard_admin_gate_checks() -> None:
+    """
+    שער הפעולות המנהליות באפליקציות ה-Streamlit — חינם, אופליין.
+
+    ההקשר שמצדיק את הבדיקות האלה: שתי האפליקציות נפרסות כאפליקציות
+    **ציבוריות** (כל מי שיש לו את הקישור), ואילו כפתור "מחיקת כל
+    הרשומות" קורא ל-reset_log — שבמצב Supabase מוחק את הטבלה בענן. לכן
+    "במצב ציבורי הפעולה חסומה" הוא חוזה שצריך להישבר בקול אם מישהו יפתח
+    אותו בטעות, ולא הערה בתיעוד.
+
+    שתי שכבות נבדקות:
+      1. שכבת המדיניות (dashboard/admin_access.py) — טהורה, בלי streamlit,
+         ולכן נבדקת ישירות ובאפס עלות.
+      2. ההתנהגות בפועל (AppTest, בצד שרת בלי דפדפן) — מה **באמת** מצויר
+         בעמוד בכל אחד משלושת המצבים. הבדיקה החשובה כאן היא רשימה סגורה:
+         אוסף הכפתורים שנוצרים במצב ציבורי חייב להיות מוכל ברשימת ההיתר,
+         כך שכל כפתור *חדש* שייווצר במצב ציבורי — גם כזה שטרם נכתב —
+         יכשיל את הבדיקה עד שיסווג במודע.
+
+    כל משתני הסביבה מוחזרים לערכם בסוף, כדי שהבדיקות שאחריהן לא יראו
+    שער שהוזז.
+    """
+    import random
+    import tempfile
+
+    from dashboard import admin_access as gate_policy
+    from storage.synthetic import generate_records
+    from storage.turn_log import write_record
+
+    # ── רשימת ההיתר: מה מותר שיהיה בעמוד ציבורי ──────────────────────────
+    # כפתור רענון מנקה cache בלבד. כל כפתור אחר במצב ציבורי הוא הפתעה,
+    # והבדיקה נכשלת עד שהוא נבדק ומסווג במודע (אותה צורת הגנה כמו
+    # LEAKY_COLUMNS ב-ml/dataset.py: הרשימה הסגורה מאלצת החלטה).
+    public_allowed_buttons = {"↻ רענון נתונים"}
+    privileged_buttons = {"מחיקת כל הרשומות", "אימון ושמירה"}
+
+    keys = (
+        gate_policy.ENV_CODE_VAR, gate_policy.ENV_PUBLIC_VAR,
+        "ANNE_LOG_DB", "ANNE_ML_MODEL",
+    )
+    saved = {key: os.environ.get(key) for key in keys}
+    real_code = "gate-code-1234"
+
+    def restore() -> None:
+        for key, value in saved.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    try:
+        # ── 1. שכבת המדיניות ─────────────────────────────────────────────
+        os.environ.pop(gate_policy.ENV_PUBLIC_VAR, None)
+        os.environ.pop(gate_policy.ENV_CODE_VAR, None)
+        not_configured = gate_policy.access_state(None)
+
+        os.environ[gate_policy.ENV_CODE_VAR] = real_code
+        os.environ[gate_policy.ENV_PUBLIC_VAR] = "1"
+        public_with_code = gate_policy.access_state(real_code)
+
+        os.environ.pop(gate_policy.ENV_PUBLIC_VAR, None)
+        local_locked = gate_policy.access_state(None)
+        local_wrong = gate_policy.access_state("not-the-code")
+        local_open = gate_policy.access_state(real_code)
+        # תווי כיווניות סמויים שנדבקים בהדבקה בדף RTL, ורווחים בקצוות —
+        # אותו שיעור שנלמד בשער ההתחברות בשרת: לא להפוך קוד נכון לכשל.
+        local_bidi = gate_policy.access_state(f"‏ {real_code} ‎")
+
+        os.environ[gate_policy.ENV_CODE_VAR] = "short"
+        too_short = gate_policy.access_state("short")
+
+        # קוד בעברית: compare_digest על str זורק על תו לא-ASCII, ולכן זו
+        # בדיקה שהמימוש משווה bytes ולא נופל.
+        os.environ[gate_policy.ENV_CODE_VAR] = "סודי-בעברית-12"
+        hebrew_ok = gate_policy.access_state("סודי-בעברית-12")
+        hebrew_bad = gate_policy.access_state("סודי-בעברית-99")
+
+        add_check(("18",),
+                  "שער הדשבורד: בלי קוד מנהל מוגדר — הפעולה אינה זמינה כלל",
+                  not_configured.available is False
+                  and not_configured.unlocked is False
+                  and not_configured.mode == "not_configured",
+                  plan=("15", "18"))
+        add_check(("18",),
+                  "שער הדשבורד: פריסה ציבורית חוסמת גם כשקוד כן הוגדר",
+                  public_with_code.available is False
+                  and public_with_code.unlocked is False
+                  and public_with_code.public is True
+                  and public_with_code.mode == "locked_public"
+                  # בעמוד ציבורי גם אין הודעת אבחון שמגלה שיש כאן אזור מנהל
+                  and public_with_code.notice_he == "",
+                  plan=("15", "18"))
+        add_check(("18",),
+                  "שער הדשבורד: קוד נכון פותח, קוד שגוי לא, וקוד קצר מדי "
+                  "נחשב תקלת הגדרה",
+                  local_locked.available is True
+                  and local_locked.unlocked is False
+                  and local_wrong.unlocked is False
+                  and local_open.unlocked is True
+                  and too_short.available is False
+                  and too_short.mode == "code_too_short",
+                  plan=("15", "18"))
+        add_check(("18",),
+                  "שער הדשבורד: נרמול הקוד (תווי כיווניות ורווחים) והשוואה "
+                  "על bytes — גם קוד בעברית",
+                  local_bidi.unlocked is True
+                  and hebrew_ok.unlocked is True
+                  and hebrew_bad.unlocked is False,
+                  plan=("15", "18"))
+        add_check(("18",),
+                  "שער הדשבורד: שכבת המדיניות אינה מייבאת streamlit "
+                  "(נבדקת בלי שרת)",
+                  "import streamlit" not in (
+                      PROJECT_ROOT / "dashboard" / "admin_access.py"
+                  ).read_text(encoding="utf-8"),
+                  plan=("15", "18"))
+
+        # ── 2. ההתנהגות בפועל, בשתי האפליקציות ───────────────────────────
+        from streamlit.testing.v1 import AppTest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_dir = Path(tmp)
+            gate_db = tmp_dir / "anne_log.db"
+            for record in generate_records(30, random.Random(11), 7):
+                write_record(record, db_path=gate_db)
+            os.environ["ANNE_LOG_DB"] = str(gate_db)
+            # נתיב מודל שאינו קיים: מקבע את עמוד החיזוי במצב "אין מודל"
+            # ומונע תלות במודל שאומן (או לא) על המכונה.
+            os.environ["ANNE_ML_MODEL"] = str(tmp_dir / "no_model.joblib")
+
+            def run_app(script: str):
+                run = AppTest.from_file(
+                    str(PROJECT_ROOT / "dashboard" / script),
+                    default_timeout=180,
+                )
+                run.run()
+                return run
+
+            def button_labels(run) -> set[str]:
+                return {str(button.label) for button in run.button}
+
+            # מצב ציבורי — הקוד מוגדר *וגם* יש סימן פריסה ציבורית: המצב
+            # המסוכן שבו מפעיל הדביק את כל ה-.env לסודות של הענן.
+            os.environ[gate_policy.ENV_CODE_VAR] = real_code
+            os.environ[gate_policy.ENV_PUBLIC_VAR] = "1"
+            public_runs = {name: run_app(name)
+                           for name in ("app.py", "ml_app.py")}
+            public_ok = all(
+                not run.exception
+                and button_labels(run) <= public_allowed_buttons
+                and not button_labels(run) & privileged_buttons
+                # שדה הקוד עצמו גם אינו מצויר: אין מה לפתוח
+                and len(run.text_input) == 0
+                for run in public_runs.values()
+            )
+            add_check(("18",),
+                      "שער הדשבורד: במצב ציבורי שתי האפליקציות עולות בלי "
+                      "אף פעולה מנהלית (רשימת כפתורים סגורה)",
+                      public_ok,
+                      plan=("15", "18"))
+
+            # מצב מקומי נעול -> שדה קוד, בלי פעולה. ואז פתיחה בקוד הנכון:
+            # זו הבדיקה שמונעת "שער שתמיד סגור" (מוטציה שהייתה עוברת את
+            # הבדיקה הציבורית בלי להעביר את זו).
+            os.environ.pop(gate_policy.ENV_PUBLIC_VAR, None)
+            locked_ok, opened_ok = {}, {}
+            for name, expected in (("app.py", "מחיקת כל הרשומות"),
+                                   ("ml_app.py", "אימון ושמירה")):
+                locked = run_app(name)
+                locked_ok[name] = (
+                    not locked.exception
+                    and len(locked.text_input) == 1
+                    and expected not in button_labels(locked)
+                )
+                opened = locked.text_input[0].set_value(real_code).run()
+                opened_ok[name] = (
+                    not opened.exception
+                    and expected in button_labels(opened)
+                )
+            add_check(("18",),
+                      "שער הדשבורד: מקומית עם קוד — שדה קוד בלבד עד "
+                      "שמקלידים אותו נכון",
+                      all(locked_ok.values()),
+                      plan=("15", "18"))
+            add_check(("18",),
+                      "שער הדשבורד: קוד נכון אכן חושף את הפעולה בשתי "
+                      "האפליקציות (השער אינו סגור-תמיד)",
+                      all(opened_ok.values()),
+                      plan=("15", "18"))
+
+        # ── 3. אין פעולה מוחקת/כותבת שאינה מאחורי השער ────────────────────
+        # סריקת מקור: כל קריאה מוחקת/מאמנת בשתי האפליקציות חייבת לשבת
+        # בפונקציה שהשער חוסם. הבדיקה מאמתת שהקריאות קיימות בדיוק במקום
+        # אחד כל אחת, ושהמקום הזה נשלט ע"י admin_gate.
+        app_text = (PROJECT_ROOT / "dashboard" / "app.py").read_text(
+            encoding="utf-8")
+        ml_text = (PROJECT_ROOT / "dashboard" / "ml_app.py").read_text(
+            encoding="utf-8")
+        add_check(("18",),
+                  "שער הדשבורד: reset_log ואימון המודל נקראים רק בתוך "
+                  "מקטע ששער הקוד חוסם",
+                  app_text.count("reset_log(db_path=db_path)") == 1
+                  and 'admin_gate("reset"' in app_text
+                  and "if not gate.unlocked:" in app_text
+                  and ml_text.count("train_all_models(db_path)") == 1
+                  and ml_text.count("save_all_models(results)") == 1
+                  and 'admin_gate("train"' in ml_text
+                  and "if gate.unlocked:" in ml_text,
+                  plan=("15", "18"))
+    finally:
+        restore()
+
+
 def run_log_backend_checks() -> None:
     """
     שכבת ה-backend של הלוג: אותו ממשק מעל SQLite ומעל Supabase.
@@ -3554,6 +3767,10 @@ def run_offline() -> int:
                  "streamlit/pandas אינם מותקנים בסביבה זו — התקינו את "
                  "llm_requirements.txt והבדיקות ירוצו אוטומטית.")
     if dash_deps_ok:
+        # שער הפעולות המנהליות — לפני בדיקות התוכן, כי הוא מזיז משתני
+        # סביבה ומחזיר אותם, ועדיף שהמצב יהיה נקי לשאר הבדיקות.
+        run_dashboard_admin_gate_checks()
+
         import random as _random
 
         from storage.synthetic import generate_records

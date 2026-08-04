@@ -13,6 +13,10 @@
 
 המודול הזה לא מייבא את ml/ — הדשבורד חייב לעלות גם בסביבה בלי
 scikit-learn, והתלות הרכה מנוהלת ב-ml_app.py בלבד.
+
+שער הפעולות המנהליות (admin_gate) יושב גם הוא כאן, כי שתי האפליקציות
+צריכות אותו — אבל *ההחלטה* אם הפעולה מותרת חיה ב-dashboard/admin_access.py
+(מדיניות טהורה בלי streamlit, כדי שהסוללה תבדוק אותה בלי שרת).
 """
 from __future__ import annotations
 
@@ -25,6 +29,7 @@ import pandas as pd
 import streamlit as st
 
 from credit import credit_html
+from dashboard.admin_access import AdminAccess, access_state
 from dashboard.data import (
     PATH_HE,
     PATH_ORDER,
@@ -583,6 +588,46 @@ def load_selected(db_path: str) -> pd.DataFrame:
     """
     path = Path(db_path)
     return load_turns_cached(db_path, path.stat().st_mtime if path.exists() else 0.0)
+
+
+def admin_gate(key: str, label: str = "קוד מנהל") -> AdminAccess:
+    """
+    שער הפעולות המנהליות — הציור היחיד שלו, לשתי האפליקציות.
+
+    ההחלטה עצמה יושבת ב-dashboard/admin_access.py (מדיניות טהורה, בלי
+    streamlit); כאן רק התצוגה. החוזה שהקוראים נשענים עליו:
+
+      * ``available=False`` -> **לא מצויר כאן שום דבר אינטראקטיבי**, ועל
+        הקורא לא לצייר את הפעולה כלל: לא כפתור, לא תיבת אישור וגם לא
+        ה-expander שעוטף אותם. פעולה מוחקת שמוסתרת בתוך כרטיס פתוח היא
+        עדיין פעולה שקיימת בעמוד — ולכן היא לא נוצרת מלכתחילה.
+      * ``unlocked=True`` -> מותר לצייר את הפעולה.
+
+    הודעת האבחון מוצגת רק כשלא זוהתה פריסה ציבורית: מקומית היא אומרת
+    למפעיל בדיוק מה להוסיף ל-.env, ובענן היא הייתה מגלה למבקר אנונימי
+    שקיים כאן אזור מנהל — בלי להועיל לאף אחד.
+
+    ה-key מפריד בין פעולות (איפוס / אימון) כדי שכל אחת תיפתח לחוד באותו
+    session, ולא ייווצר מצב שפתיחת אחת פותחת גם את השנייה.
+    """
+    field = f"anne_admin_code_{key}"
+    state = access_state(st.session_state.get(field))
+    if not state.available:
+        if state.notice_he and not state.public:
+            st.caption(state.notice_he)
+        return state
+    if state.unlocked:
+        return state
+    st.text_input(
+        label, type="password", key=field,
+        help="הקוד מוגדר במשתנה הסביבה ANNE_DASHBOARD_ADMIN_CODE "
+             "(קובץ .env המקומי, שאינו בבקרת גרסאות).",
+    )
+    entered = st.session_state.get(field)
+    state = access_state(entered)
+    if entered and not state.unlocked:
+        st.caption("קוד שגוי.")
+    return state
 
 
 def sidebar_filters(df_all: pd.DataFrame) -> pd.DataFrame:

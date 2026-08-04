@@ -42,6 +42,7 @@ from dashboard.ui import (  # noqa: E402
     LABEL_LIMIT_PX,
     MODEL_COLORS,
     MUTED,
+    admin_gate,
     axis,
     brand_header,
     category_bar,
@@ -227,27 +228,36 @@ def _render_prediction(filtered: pd.DataFrame, db_path: str) -> None:
         "מתוך התשובה (target leakage)."
     )
 
-    # ── אימון (מחדש) על קובץ הלוג הנבחר ─────────────────────────────────
-    with st.expander("🎓 אימון כל המודלים על הקובץ הנבחר"):
-        st.caption(
-            f"אימון על `{source_label(db_path)}` ושמירה אל "
-            f"`{resolve_model_path().name}`. כל המודלים מאומנים על *אותו* "
-            "פיצול אימון/בדיקה — אחרת ההשוואה ביניהם חסרת משמעות. אם בקובץ "
-            "אין גם תורי חירום וגם תורי שגרה — האימון ייעצר בהודעה ברורה."
-        )
-        if st.button("אימון ושמירה", width="stretch"):
-            try:
-                results = train_all_models(db_path)
-                save_all_models(results)
-                _load_bundle.clear()  # המודל החדש ייטען במקום זה שב-cache
-                trained = ", ".join(
-                    f"{entry['metrics']['model_name_he']} "
-                    f"({entry['metrics']['roc_auc']})"
-                    for entry in results.values()
-                )
-                st.success(f"אומנו ונשמרו {len(results)} מודלים — {trained}")
-            except ValueError as exc:
-                st.error(str(exc))
+    # ── אימון (מחדש) על קובץ הלוג הנבחר — מאחורי שער הקוד ────────────────
+    # אימון הוא פעולה שכותבת (bundle חדש ל-ml/models/) וגם חישוב כבד, ולכן
+    # היא כפופה לאותו שער כמו איפוס הלוג: האפליקציה ציבורית, וכפתור שמאמן
+    # מודל בלחיצה אחת הוא גם כתיבה וגם עומס שמבקר אנונימי יכול להפעיל שוב
+    # ושוב. שער סגור -> הכפתור וה-expander אינם נוצרים כלל.
+    gate = admin_gate("train", "קוד מנהל — אימון מודלים")
+    if gate.unlocked:
+        with st.expander("🎓 אימון כל המודלים על הקובץ הנבחר"):
+            st.caption(
+                f"אימון על `{source_label(db_path)}` ושמירה אל "
+                f"`{resolve_model_path().name}`. כל המודלים מאומנים על "
+                "*אותו* פיצול אימון/בדיקה — אחרת ההשוואה ביניהם חסרת "
+                "משמעות. אם בקובץ אין גם תורי חירום וגם תורי שגרה — "
+                "האימון ייעצר בהודעה ברורה."
+            )
+            if st.button("אימון ושמירה", width="stretch"):
+                try:
+                    results = train_all_models(db_path)
+                    save_all_models(results)
+                    _load_bundle.clear()  # המודל החדש ייטען במקום שב-cache
+                    trained = ", ".join(
+                        f"{entry['metrics']['model_name_he']} "
+                        f"({entry['metrics']['roc_auc']})"
+                        for entry in results.values()
+                    )
+                    st.success(
+                        f"אומנו ונשמרו {len(results)} מודלים — {trained}"
+                    )
+                except ValueError as exc:
+                    st.error(str(exc))
 
     model_file = resolve_model_path()
     try:
@@ -256,8 +266,13 @@ def _render_prediction(filtered: pd.DataFrame, db_path: str) -> None:
             model_file.stat().st_mtime if model_file.exists() else 0.0,
         )
     except FileNotFoundError:
+        # ההודעה חייבת להתאים למה שיש על המסך: כששער הקוד סגור אין "כפתור
+        # למעלה", והפניה אליו הייתה שולחת את הקורא לחפש רכיב שלא קיים.
         st.info(
             "אין עדיין מודל מאומן — אמנו בכפתור למעלה, או בשורת הפקודה: "
+            "`python -m ml.train`"
+            if gate.unlocked else
+            "אין עדיין מודל מאומן. האימון נעשה בשורת הפקודה: "
             "`python -m ml.train`",
             icon="🎓",
         )

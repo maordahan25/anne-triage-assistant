@@ -16,7 +16,10 @@
   * הצבעים, ה-CSS והגרפים מגיעים מ-dashboard/ui.py — מקור אחד לשתי
     האפליקציות, כדי שלא ייווצרו שתי פלטות ושני עיצובים.
   * כפתור המנהל (איפוס הלוג) קורא ל-storage.reset_log עם אישור כפול —
-    מחיקת אמת (DELETE + VACUUM) של כל הרשומות.
+    מחיקת אמת (DELETE + VACUUM) של כל הרשומות, ובמצב Supabase של הטבלה
+    בענן. לכן הוא יושב מאחורי שער קוד (dashboard/admin_access.py):
+    האפליקציה נפרסת כאפליקציה ציבורית, וכששער הקוד סגור הכפתור אינו
+    נוצר בעמוד כלל — ראה _admin_reset.
 """
 from __future__ import annotations
 
@@ -53,6 +56,7 @@ from dashboard.ui import (  # noqa: E402
     ML_APP_URL,
     PATH_COLORS,
     TOPIC_COLORS,
+    admin_gate,
     axis,
     brand_header,
     category_bar,
@@ -70,6 +74,42 @@ from dashboard.ui import (  # noqa: E402
 from storage.turn_log import reset_log  # noqa: E402
 
 
+def _admin_reset(db_path: str) -> None:
+    """
+    אזור המנהל — איפוס הלוג, מאחורי שער הקוד (ui.admin_gate).
+
+    הפעולה הזו מוחקת הכול (DELETE + VACUUM), ובמצב Supabase היא מוחקת את
+    הטבלה **בענן**. האפליקציה נפרסת כאפליקציה ציבורית, ולכן כשהשער סגור
+    לא נוצר כאן שום רכיב: לא הכפתור, לא תיבת האישור וגם לא ה-expander
+    שעוטף אותם. פעולה מוחקת שקיימת בעמוד אך "מוסתרת" היא עדיין פעולה
+    שקיימת בעמוד.
+
+    כשהשער פתוח נשמרת ההגנה שהייתה כאן קודם: אישור מפורש בתיבת סימון,
+    והכפתור נעול עד שהיא מסומנת.
+    """
+    gate = admin_gate("reset", "קוד מנהל — איפוס הלוג")
+    if not gate.unlocked:
+        return
+    with st.expander("🗑️ אזור מנהל — איפוס הלוג", expanded=True):
+        st.warning(
+            "מחיקת **כל** הרשומות ממקור הנתונים הנבחר — פעולה סופית "
+            "שאין ממנה חזרה.",
+            icon="⚠️",
+        )
+        confirmed = st.checkbox("אני מבין/ה שהמחיקה סופית")
+        if st.button(
+            "מחיקת כל הרשומות", type="primary",
+            disabled=not confirmed, width="stretch",
+        ):
+            deleted = reset_log(db_path=db_path)
+            st.cache_data.clear()
+            st.session_state["reset_message"] = (
+                f"הלוג אופס: נמחקו {deleted} רשומות מ-"
+                f"{source_label(db_path)}."
+            )
+            st.rerun()
+
+
 def main() -> None:
     page_setup("אן — דשבורד לוג השיחות")
 
@@ -79,27 +119,8 @@ def main() -> None:
     filtered = sidebar_filters(df_all)
 
     with st.sidebar:
-        # אזור המנהל: איפוס הלוג באישור כפול. המחיקה סופית (DELETE+VACUUM)
-        # ולכן הכפתור נעול עד לסימון תיבת האישור.
         st.divider()
-        with st.expander("🗑️ אזור מנהל — איפוס הלוג"):
-            st.warning(
-                "מחיקת **כל** הרשומות ממקור הנתונים הנבחר — פעולה סופית "
-                "שאין ממנה חזרה.",
-                icon="⚠️",
-            )
-            confirmed = st.checkbox("אני מבין/ה שהמחיקה סופית")
-            if st.button(
-                "מחיקת כל הרשומות", type="primary",
-                disabled=not confirmed, width="stretch",
-            ):
-                deleted = reset_log(db_path=db_path)
-                st.cache_data.clear()
-                st.session_state["reset_message"] = (
-                    f"הלוג אופס: נמחקו {deleted} רשומות מ-"
-                    f"{source_label(db_path)}."
-                )
-                st.rerun()
+        _admin_reset(db_path)
 
     sidebar_sibling_link(
         "מודל החיזוי (ML) — אפליקציה נפרדת", ML_APP_URL, ML_APP_COMMAND,
