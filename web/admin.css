@@ -240,17 +240,6 @@ input:focus {
 
 .ghost-link:hover { text-decoration: underline; }
 
-.dashed-note {
-  margin: 24px 0 0;
-  padding: 14px 16px;
-  font-size: 0.8rem;
-  line-height: 1.6;
-  color: var(--text-muted);
-  text-align: center;
-  border: 1px dashed var(--border);
-  border-radius: 14px;
-}
-
 /* ══ אזור המנהל ════════════════════════════════════════════════════ */
 .admin-view { display: flex; flex-direction: column; min-height: 100vh; }
 
@@ -305,21 +294,6 @@ input:focus {
   flex-direction: column;
   gap: 32px;
 }
-
-/* הודעת ה"שער הזמני" — טון קורל רך, לא אזהרה אדומה */
-.notice-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 18px;
-  font-size: 0.92rem;
-  color: var(--coral-800);
-  background: var(--coral-50);
-  border: 1px solid var(--coral-100);
-  border-radius: 16px;
-}
-
-.notice-card p { margin: 0; }
 
 .admin-section { display: flex; flex-direction: column; gap: 14px; }
 

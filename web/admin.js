@@ -2,10 +2,11 @@
    אן — לוגיקת צד-הלקוח של אזור המנהל.
 
    עקרונות:
-   * שער התחברות זמני להדגמה: המשתמש הקבוע נבדק בשרת
-     (server/app.py :: /api/admin/login), ולא כאן — הדפדפן לא מכיר את
+   * בקרת גישה לאזור המנהל מבוססת משתמש מנהל יחיד, שפרטיו נשמרים ב-.env
+     מחוץ לבקרת גרסאות. זו החלטה מכוונת המתאימה להיקף המערכת — משתמש אחד
+     בפועל, ולכן אין צורך בשכבת ניהול משתמשים. הפרטים נבדקים בשרת
+     (server/app.py :: /api/admin/login) ולא כאן — הדפדפן לא מכיר את
      הסיסמה. הטוקן שמוחזר נשמר ב-sessionStorage (נמחק בסגירת הלשונית).
-     זו *אינה* אבטחה אמיתית — בעתיד Supabase (משתמש+סיסמה בענן).
    * כל התוכן (אפליקציות ומסמכים) מגיע מ-/api/admin/overview — הרשימה
      הסגורה בשרת; הדפדפן לא מרכיב נתיבי קבצים בעצמו.
    * כל טקסט מוצג דרך textContent — אין הזרקת HTML (כמו ב-app.js).
@@ -25,7 +26,6 @@ const loginErrorText = document.getElementById("login-error-text");
 const togglePasswordBtn = document.getElementById("toggle-password");
 const logoutBtn = document.getElementById("logout-btn");
 const emailChip = document.getElementById("admin-email-chip");
-const adminNote = document.getElementById("admin-note");
 const appsGrid = document.getElementById("apps-grid");
 const docsGrid = document.getElementById("docs-grid");
 const refreshBtn = document.getElementById("refresh-btn");
@@ -1143,7 +1143,6 @@ async function loadOverview() {
 
   showView("admin");
   emailChip.textContent = data.email || "";
-  adminNote.textContent = data.note_he || "";
   projectDocs = data.docs || [];
   appsGrid.replaceChildren(...(data.apps || []).map(appCard));
   // התרחישים אינם מקבלים כרטיס ברשת המסמכים: יש להם מקטע משלהם למעלה,
