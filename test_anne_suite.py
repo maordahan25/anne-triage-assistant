@@ -5273,6 +5273,111 @@ def run_offline() -> int:
                   and per_address,
                   plan=("18",))
 
+        # ── אפליקציה מאחורי שער התחברות אינה "זמין" (באג שנמצא בפועל) ────
+        # שתי האפליקציות הפרוסות הוגנו בשער התחברות של שירות האירוח, וכל
+        # נתיב — כולל /_stcore/health — הפנה ל-host של האימות וממנו למסך
+        # התחברות שמחזיר 200. הגרסה הראשונה קראה ב-follow_redirects=True
+        # והחזירה את הסטטוס הסופי, ולכן הכרטיס הכריז "זמין" על אפליקציה
+        # שאף מבקר אינו יכול לפתוח — אותה כשל-פתוח של בדיקת ה-TCP, כבה
+        # אחת מעלה. שתי שכבות נבדקות כאן בנפרד, כי הבאג היה ב*הבאה* ולא
+        # בסיווג: קודם הסיווג דרך התפר, ואחריו _http_probe עצמו מול httpx
+        # מזויף.
+        gated = _remote_overview(
+            lambda url: (303, "https://auth.example-host.test/-/auth/app"
+                              f"?redirect_uri={url}")
+        )
+        gate_classified = all(
+            gated[key]["available"] is False
+            and gated[key]["status_he"] == "דורש התחברות"
+            and "התחברות" in gated[key]["hint_he"]
+            and "בטרמינל" not in gated[key]["hint_he"]
+            # וההודעה שונה משאר מצבי הכשל — היא דורשת פעולה אחרת
+            and gated[key]["status_he"] != missing[key]["status_he"]
+            and gated[key]["status_he"] != unreachable[key]["status_he"]
+            for key in ("dashboard", "ml")
+        )
+
+        # _http_probe עצמו, מול httpx מזויף — בלי רשת. כל תרחיש הוא
+        # מפה של כתובת -> (סטטוס, Location).
+        import httpx as _httpx_mod
+
+        class _FakeResponse:
+            def __init__(self, status, location=None):
+                self.status_code = status
+                self.headers = {"location": location} if location else {}
+
+        def _probe_over(routes, url="https://app.test/_stcore/health"):
+            """הרצת _http_probe האמיתי מול טבלת תשובות קבועה."""
+            original_get = _httpx_mod.get
+            calls: list[str] = []
+
+            def fake_get(target, **kwargs):
+                calls.append(target)
+                if kwargs.get("follow_redirects"):      # חייב להיות כבוי
+                    raise AssertionError("follow_redirects must be False")
+                if target not in routes:
+                    raise _httpx_mod.ConnectError("no route")
+                return _FakeResponse(*routes[target])
+
+            server_app.set_remote_probe(None)
+            _httpx_mod.get = fake_get
+            try:
+                return server_app._http_probe(url), calls
+            finally:
+                _httpx_mod.get = original_get
+
+        H = "https://app.test/_stcore/health"
+        AUTH = "https://auth.other-host.test/-/auth/app"
+        LOGIN = "https://app.test/-/login?payload=x"
+        # (א) שרשרת האימות האמיתית: app -> host אחר -> חזרה למסך התחברות
+        #     ב-host שלנו שמחזיר 200. אסור לבלוע אותה עד ה-200.
+        gate_probe, gate_calls = _probe_over({
+            H: (303, AUTH), AUTH: (303, LOGIN), LOGIN: (200, None),
+        })
+        # (ב) אפליקציה ציבורית תקינה
+        ok_probe, _ = _probe_over({H: (200, None)})
+        # (ג) שם שאינו פרוס
+        nf_probe, _ = _probe_over({H: (404, None)})
+        # (ד) הפניה שנשארת באותו host (תוספת "/" בסוף) עדיין נבלעת
+        same_probe, same_calls = _probe_over({
+            H: (307, "https://app.test/_stcore/health/"),
+            "https://app.test/_stcore/health/": (200, None),
+        })
+        # (ה) לולאת הפניות באותו host -> "לא נגישה", לא תלייה
+        loop_probe, loop_calls = _probe_over({H: (302, H)})
+        # (ו) כשל רשת
+        down_probe, _ = _probe_over({})
+
+        probe_layer = (
+            # זה הבאג: הסטטוס אינו 200, והיציאה מה-host מתועדת
+            gate_probe.status == 303
+            and gate_probe.left_host_for == AUTH
+            and LOGIN not in gate_calls          # לא הגיע למסך ההתחברות בכלל
+            and ok_probe == (200, None)
+            and nf_probe == (404, None)
+            and same_probe == (200, None) and len(same_calls) == 2
+            and loop_probe == (None, None)
+            and len(loop_calls) <= server_app._MAX_SAME_HOST_HOPS + 1
+            and down_probe == (None, None)
+        )
+        # והחיווט בין השכבות: אותה תוצאה מסווגת ל-auth_required. דרך התפר
+        # ולא מול httpx, כי _remote_app_state בונה את כתובת הבריאות בעצמו —
+        # ובלי התפר זו הייתה קריאת רשת אמיתית בסוללה ה"חינמית".
+        server_app.set_remote_probe(lambda url: (303, AUTH))
+        try:
+            gate_state = server_app._remote_app_state("https://app.test")
+        finally:
+            server_app.set_remote_probe(None)
+        add_check(("18",),
+                  "אזור מנהל: אפליקציה בענן שמאחורי שער התחברות מוצגת "
+                  "'דורש התחברות' ולא 'זמין' — ההפניה שעוזבת את ה-host "
+                  "אינה נבלעת (200 של מסך ההתחברות אינו זמינות), והפניה "
+                  "באותו host עדיין נבלעת",
+                  gate_classified and probe_layer
+                  and gate_state["reason"] == "auth_required"
+                  and gate_state["available"] is False,
+                  plan=("18",))
+
         # רשימה סגורה = אין path traversal ואין חשיפת סודות/לוג שיחות.
         # נבדקים *כל* הנתיבים שהמודול נוגע בהם: גם המקור שהמציג קורא
         # וגם הקובץ שמוגש להורדה (הם אינם תמיד אותו קובץ).

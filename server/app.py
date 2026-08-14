@@ -45,8 +45,8 @@ from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
-from urllib.parse import urlsplit
+from typing import Callable, NamedTuple
+from urllib.parse import urljoin, urlsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import (
@@ -859,39 +859,91 @@ def _is_local_url(url: str) -> bool:
 # ושם שאינו פרוס מחזיר 404 עם הפניה למסך השגיאה של Streamlit. לכן
 # ההחלטה כאן היא לפי סטטוס, וכשל רשת אינו "לא נמצא" אלא "לא נגישה" —
 # שתי הודעות שונות, כי הן דורשות שתי פעולות שונות מהמנהל.
+#
+# **ומכאן הטעות שנמצאה אחר כך, וזו אותה טעות בדיוק שכבה אחת מעלה.** הגרסה
+# הראשונה קראה ב-follow_redirects=True והחזירה את הסטטוס ה*סופי*. אפליקציה
+# ששירות האירוח מגן עליה בשער התחברות מפנה כל נתיב — כולל /_stcore/health —
+# ל-host של שירות האימות וממנו חזרה למסך התחברות ב-host שלה, שמחזיר 200.
+# כלומר הכרטיס הציג "זמין" לאפליקציה שאף מבקר אינו יכול לפתוח: **נכשל
+# פתוח**, בדיוק כמו בדיקת ה-TCP שההערה למעלה באה להחליף. נמדד על שתי
+# האפליקציות הפרוסות: 303 -> 303 -> 303 -> 200, ושני העמודים הסופיים
+# זהים בית-בית (9,272 בתים, אותו sha256) ואינם מכילים אף תו עברי — כלומר
+# מסך התחברות ולא תוכן האפליקציה.
+#
+# לכן ההפניות **אינן** נבלעות: הבדיקה הולכת בעצמה, וברגע שהשרשרת עוזבת את
+# ה-host של האפליקציה זו התשובה — שער התחברות, לא זמינות. הפניה שנשארת
+# באותו host (תוספת "/" בסוף, http->https) עדיין נבלעת, כי היא באמת אותה
+# אפליקציה; מספר הקפיצות חסום, כדי שלולאת הפניות תיפול ל"לא נגישה" ולא
+# תיתלה.
 _HEALTH_PATH = "/_stcore/health"  # נתיב הבריאות של Streamlit
 _REMOTE_TIMEOUT_SECONDS = 4.0
+_REDIRECT_CODES = {301, 302, 303, 307, 308}
+_MAX_SAME_HOST_HOPS = 3
+
+
+class _RemoteProbe(NamedTuple):
+    """
+    תוצאת בדיקה של יעד מרוחק.
+
+    status         — קוד הסטטוס, או None כשלא ניתן היה להגיע בכלל.
+    left_host_for  — הכתובת שאליה השרשרת יצאה *מחוץ* ל-host של האפליקציה,
+                     או None. זה השדה שמבדיל שער התחברות מזמינות, והוא
+                     נשמר בנפרד מהסטטוס דווקא מפני שהסטטוס לבדו משקר.
+    """
+
+    status: int | None
+    left_host_for: str | None = None
+
 
 # תפר לבדיקות: הסוללה האופליינית מזריקה בודק מזויף, כדי שסיווג התשובות
 # ייבדק **בלי שום קריאת רשת** — אותה גישה של set_connection_factory
-# בשכבת ה-Postgres.
-_remote_probe: Callable[[str], int | None] | None = None
+# בשכבת ה-Postgres. בודק מוזרק יכול להחזיר סטטוס בלבד (int/None) או
+# (status, left_host_for) — הצורה הראשונה נשמרה כדי שבדיקות קיימות
+# יישארו קריאות, והשנייה היא זו שמבטאת הפניה.
+_remote_probe: Callable[[str], object] | None = None
 
 
-def set_remote_probe(probe: Callable[[str], int | None] | None) -> None:
+def set_remote_probe(probe: Callable[[str], object] | None) -> None:
     """החלפת בודק הזמינות המרוחק (בדיקות אופליין). None = חזרה ל-HTTP."""
     global _remote_probe
     _remote_probe = probe
 
 
-def _http_status(url: str) -> int | None:
+def _as_probe(value: object) -> _RemoteProbe:
+    """נרמול תשובת בודק מוזרק לצורה אחת."""
+    if isinstance(value, _RemoteProbe):
+        return value
+    if isinstance(value, tuple):
+        return _RemoteProbe(*value)
+    return _RemoteProbe(value, None)  # type: ignore[arg-type]
+
+
+def _http_probe(url: str) -> _RemoteProbe:
     """
-    קוד הסטטוס של GET לכתובת, או None כשלא ניתן היה להגיע אליה בכלל.
+    בדיקת GET לכתובת, בלי לבלוע הפניה שעוזבת את ה-host של האפליקציה.
 
     לעולם אינו זורק: כרטיס באזור המנהל אינו סיבה להפיל בקשה. httpx כבר
     תלות מוצהרת של המעטפת (הוא הלקוח של fastapi.testclient).
     """
     if _remote_probe is not None:
-        return _remote_probe(url)
+        return _as_probe(_remote_probe(url))
     try:
         import httpx
 
-        response = httpx.get(
-            url, timeout=_REMOTE_TIMEOUT_SECONDS, follow_redirects=True,
-        )
-        return response.status_code
+        origin = urlsplit(url).hostname
+        target = url
+        for _ in range(_MAX_SAME_HOST_HOPS + 1):
+            response = httpx.get(
+                target, timeout=_REMOTE_TIMEOUT_SECONDS, follow_redirects=False,
+            )
+            if response.status_code not in _REDIRECT_CODES:
+                return _RemoteProbe(response.status_code, None)
+            target = urljoin(target, response.headers.get("location") or "")
+            if (urlsplit(target).hostname or origin) != origin:
+                return _RemoteProbe(response.status_code, target)
+        return _RemoteProbe(None, None)  # לולאת הפניות בתוך אותו host
     except Exception:
-        return None
+        return _RemoteProbe(None, None)
 
 
 def _remote_app_state(url: str) -> dict:
@@ -902,8 +954,13 @@ def _remote_app_state(url: str) -> dict:
     המקומי, ולתהליך בענן אין PID כאן. זו גם אינה בעיה — התנגשות פורטים
     היא תקלה מקומית בלבד.
     """
-    status = _http_status(url.rstrip("/") + _HEALTH_PATH)
-    if status is None:
+    probe = _http_probe(url.rstrip("/") + _HEALTH_PATH)
+    status = probe.status
+    if probe.left_host_for is not None:
+        # שער התחברות של שירות האירוח. נבדק *לפני* הסטטוס בכוונה: הסטטוס
+        # בשרשרת כזו הוא 3xx (ואחרי בליעה — 200), ושניהם היו מסווגים כזמין.
+        reason = "auth_required"
+    elif status is None:
         reason = "unreachable"
     elif status == 404:
         reason = "not_found"
@@ -920,6 +977,7 @@ def _remote_app_state(url: str) -> dict:
         "remote": True,
         "reason": reason,
         "status": status,
+        "redirect_to": probe.left_host_for,
     }
 
 
@@ -1066,6 +1124,14 @@ def _app_card(spec: AppSpec, ml_metrics: str | None) -> dict:
         # יושב ב-hint_he.
         status_he = "פורט תפוס"
         hint_he = _mismatch_hint_he(state, spec)
+    elif reason == "auth_required":
+        status_he = "דורש התחברות"
+        hint_he = (
+            "שירות האירוח מפנה את הכתובת למסך התחברות, ולכן מי שאין לו "
+            "הרשאת צפייה בשירות אינו יכול לפתוח את האפליקציה — גם עם "
+            "הקישור. אם זו הכוונה, אין מה לתקן; אחרת יש לשנות את הרשאות "
+            "הצפייה של האפליקציה בשירות האירוח לציבורי."
+        )
     elif reason == "not_found":
         status_he = "כתובת לא נמצאה"
         hint_he = (
