@@ -499,12 +499,19 @@ filters) sits once in `dashboard/ui.py` — both consume it, neither duplicates 
 - **Admin button 🗑️:** resetting the log (`storage.reset_log`) with double
   confirmation — the button is locked until a confirmation checkbox is ticked, and
   the deletion is final (DELETE + VACUUM).
-- **⚠️ The gate on administrative actions — mandatory before a public
+- **⚠️ The gate on administrative actions — locked by default, in every
   deployment:** resetting the log and training the models are locked by default
   (`dashboard/admin_access.py`). The deletion is final, and in Supabase mode it
-  deletes the table **in the cloud** — and therefore in a public app (anyone who
-  has the link) these actions are simply **not created in the page at all**: not a
-  button, not a confirmation checkbox and not even the card that wraps them.
+  deletes the table **in the cloud** — and therefore in a cloud deployment these
+  actions are simply **not created in the page at all**: not a button, not a
+  confirmation checkbox and not even the card that wraps them.
+  **Who can reach the app is not something the repo can know:** viewer
+  permissions are a setting in the hosting service, and making an app public is
+  one click that leaves no trace in Git. At the last check both apps in fact
+  *required* authentication (every path, the health check included, redirects to
+  a login screen) — and that can flip back without a single commit. So the code
+  assumes neither state, and the gate is what makes the answer independent of
+  them.
   For local operation add `ANNE_DASHBOARD_ADMIN_CODE` (at least 8 characters) to
   `.env` and you will get a code field in the sidebar; only a correct code reveals
   the action.
@@ -965,8 +972,13 @@ python -m uvicorn server.app:app --port 8000
 > app that is not deployed (measured). Therefore on a remote target the HTTP
 > response of the address itself decides: a deployed app returns 200 (even when it
 > is "asleep" — the link wakes it), a name that is not deployed returns 404 and is
-> displayed as "address not found", and a network failure is displayed as "not
-> reachable" — a separate message, because it demands a different action. A local run
+> displayed as "address not found", an app protected by the hosting service's login
+> gate is identified by the redirect that **leaves its own host** and is displayed as
+> "requires sign-in", and a network failure is displayed as "not reachable". Four
+> separate messages, because each demands a different action — and the third one
+> especially: a login gate redirects every path (the health check included) and ends
+> at the login screen's 200, so swallowing redirects would have declared "available"
+> for an app no visitor can open (measured on both deployed apps). A local run
 > command is not offered on a cloud card: it brings up an app at localhost, which is
 > not the address the button opens.
 
