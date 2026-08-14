@@ -42,8 +42,10 @@ import socket
 import threading
 import time
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
@@ -838,6 +840,89 @@ def _port_is_open(url: str, timeout: float = 0.25) -> bool:
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
 
 
+def _is_local_url(url: str) -> bool:
+    """האם הכתובת מצביעה על המכונה הזו (ולכן ניתן לזהות מי מאזין שם)."""
+    return (urlsplit(url).hostname or "localhost") in _LOCAL_HOSTS
+
+
+# ── בדיקת זמינות של אפליקציה מרוחקת (פרוסה בענן) ────────────────────────
+# בדיקת TCP מספיקה לאפליקציה מקומית — פורט פתוח = תהליך רץ. על כתובת
+# ענן היא **חסרת משמעות, ובאופן שמשקר לטובה**: כל אפליקציות Streamlit
+# Cloud יושבות מאחורי אותו host משותף, ולכן חיבור TCP ל-443 מצליח לכל
+# תת-דומיין שקיים ב-DNS — גם לאפליקציה שאינה פרוסה בכלל. נמדד כאן: חיבור
+# ל-*.streamlit.app הצליח גם עבור שם אפליקציה מומצא, כלומר הכרטיס היה
+# מציג "זמין" תמיד, ולא משנה מה הוגדר בכתובת.
+#
+# מה כן מבדיל: קוד הסטטוס של HTTP על הכתובת עצמה. נמדד מול שתי
+# האפליקציות הפרוסות ומול שם מומצא — אפליקציה קיימת מחזירה 200 (גם כשהיא
+# "נמה" ומוגש לה מסך ההתעוררות, וזה עדיין יעד תקין: הקישור מעיר אותה),
+# ושם שאינו פרוס מחזיר 404 עם הפניה למסך השגיאה של Streamlit. לכן
+# ההחלטה כאן היא לפי סטטוס, וכשל רשת אינו "לא נמצא" אלא "לא נגישה" —
+# שתי הודעות שונות, כי הן דורשות שתי פעולות שונות מהמנהל.
+_HEALTH_PATH = "/_stcore/health"  # נתיב הבריאות של Streamlit
+_REMOTE_TIMEOUT_SECONDS = 4.0
+
+# תפר לבדיקות: הסוללה האופליינית מזריקה בודק מזויף, כדי שסיווג התשובות
+# ייבדק **בלי שום קריאת רשת** — אותה גישה של set_connection_factory
+# בשכבת ה-Postgres.
+_remote_probe: Callable[[str], int | None] | None = None
+
+
+def set_remote_probe(probe: Callable[[str], int | None] | None) -> None:
+    """החלפת בודק הזמינות המרוחק (בדיקות אופליין). None = חזרה ל-HTTP."""
+    global _remote_probe
+    _remote_probe = probe
+
+
+def _http_status(url: str) -> int | None:
+    """
+    קוד הסטטוס של GET לכתובת, או None כשלא ניתן היה להגיע אליה בכלל.
+
+    לעולם אינו זורק: כרטיס באזור המנהל אינו סיבה להפיל בקשה. httpx כבר
+    תלות מוצהרת של המעטפת (הוא הלקוח של fastapi.testclient).
+    """
+    if _remote_probe is not None:
+        return _remote_probe(url)
+    try:
+        import httpx
+
+        response = httpx.get(
+            url, timeout=_REMOTE_TIMEOUT_SECONDS, follow_redirects=True,
+        )
+        return response.status_code
+    except Exception:
+        return None
+
+
+def _remote_app_state(url: str) -> dict:
+    """
+    מצב אפליקציה מרוחקת, לפי תשובת ה-HTTP של הכתובת *שלה*.
+
+    זהות המאזין אינה נבדקת (mismatch=False תמיד): היא נשענת על התהליך
+    המקומי, ולתהליך בענן אין PID כאן. זו גם אינה בעיה — התנגשות פורטים
+    היא תקלה מקומית בלבד.
+    """
+    status = _http_status(url.rstrip("/") + _HEALTH_PATH)
+    if status is None:
+        reason = "unreachable"
+    elif status == 404:
+        reason = "not_found"
+    elif 200 <= status < 400:
+        reason = "ok"
+    else:
+        reason = "http_error"
+    return {
+        "listening": reason == "ok",
+        "available": reason == "ok",
+        "mismatch": False,
+        "script": None,
+        "pid": None,
+        "remote": True,
+        "reason": reason,
+        "status": status,
+    }
+
+
 def _listener_script(url: str) -> tuple[str | None, int | None]:
     """
     איזה סקריפט Streamlit מאזין בפורט של הכתובת, ובאיזה PID.
@@ -853,10 +938,9 @@ def _listener_script(url: str) -> tuple[str | None, int | None]:
     lsof/ps זמינים. כשלא ניתן לדעת: (None, None) = "לא ידוע", וההתנהגות
     חוזרת לבדיקת ה-TCP בלבד.
     """
-    parts = urlsplit(url)
-    host = parts.hostname or "localhost"
-    if host not in _LOCAL_HOSTS:
+    if not _is_local_url(url):
         return None, None
+    parts = urlsplit(url)
     port = parts.port or (443 if parts.scheme == "https" else 80)
     import subprocess
 
@@ -892,12 +976,19 @@ def _listener_script(url: str) -> tuple[str | None, int | None]:
 
 def _app_state(url: str, script: str) -> dict:
     """
-    מצב האפליקציה בכתובת *שלה*: האם יש מאזין, והאם זו האפליקציה הנכונה.
+    מצב האפליקציה בכתובת *שלה*: האם היא עונה, והאם זו האפליקציה הנכונה.
 
-    available = הכתובת עונה **והאפליקציה שעונה היא זו של הכרטיס**. כשזהות
-    המאזין אינה ידועה (כתובת מרוחקת / אין lsof) לא מניחים רעה: mismatch
-    נשאר False וההתנהגות זהה לקודם.
+    הבדיקה תמיד על הכתובת של הכרטיס — לא על localhost — ולכן היא נחלקת
+    לפי סוג היעד, כי "עונה" נמדד אחרת בכל אחד מהם:
+      * מקומי — פורט TCP פתוח + זהות התהליך שמאזין (ראה _listener_script).
+      * מרוחק — קוד הסטטוס של הכתובת עצמה (ראה _remote_app_state), כי
+        פורט 443 של host ענן משותף פתוח גם כשאין שם אפליקציה.
+
+    available = היעד עונה **והאפליקציה שעונה היא זו של הכרטיס**. כשזהות
+    המאזין אינה ידועה (אין lsof) לא מניחים רעה: mismatch נשאר False.
     """
+    if not _is_local_url(url):
+        return _remote_app_state(url)
     listening = _port_is_open(url)
     found, pid = _listener_script(url) if listening else (None, None)
     mismatch = bool(found) and found != script
@@ -907,6 +998,9 @@ def _app_state(url: str, script: str) -> dict:
         "mismatch": mismatch,
         "script": found,
         "pid": pid,
+        "remote": False,
+        "reason": "mismatch" if mismatch else ("ok" if listening else "closed"),
+        "status": None,
     }
 
 
@@ -943,13 +1037,28 @@ def _app_card(spec: AppSpec, ml_metrics: str | None) -> dict:
     """
     state = _app_state(spec.url, spec.script)
     available = state["available"]
+    remote = state["remote"]
+    reason = state["reason"]
     if available:
         if spec.key == "ml":
-            status_he = ("זמין — מודל מאומן" if ml_metrics
-                         else "זמין — ללא מודל מאומן")
-            hint_he = (f"מדדי המודל השמור: {ml_metrics}" if ml_metrics else
-                       "אין עדיין מודל מאומן — אפשר לאמן אותו מהכפתור "
-                       "שבעמוד עצמו.")
+            # על יעד מקומי המודל השמור הוא *של אותה מכונה*, ולכן הסטטוס
+            # יכול להצהיר עליו. על יעד בענן זו כבר טענה על מכונה אחרת:
+            # ה-bundle אינו בבקרת גרסאות, האפליקציה הפרוסה מאמנת מודל
+            # משלה, ו"זמין — ללא מודל מאומן" היה נשמע כמו עובדה על העמוד
+            # שנפתח. לכן בענן הסטטוס אומר רק "זמין", והמדדים המקומיים
+            # מוצגים ברמז ומיוחסים במפורש למכונה הזו.
+            if remote:
+                status_he = "זמין"
+                hint_he = (
+                    f"מדדי המודל השמור במחשב הזה: {ml_metrics}. האפליקציה "
+                    "הפרוסה מאמנת ושומרת מודל משלה." if ml_metrics else ""
+                )
+            else:
+                status_he = ("זמין — מודל מאומן" if ml_metrics
+                             else "זמין — ללא מודל מאומן")
+                hint_he = (f"מדדי המודל השמור: {ml_metrics}" if ml_metrics else
+                           "אין עדיין מודל מאומן — אפשר לאמן אותו מהכפתור "
+                           "שבעמוד עצמו.")
         else:
             status_he, hint_he = "זמין", ""
     elif state["mismatch"]:
@@ -957,6 +1066,26 @@ def _app_card(spec: AppSpec, ml_metrics: str | None) -> dict:
         # יושב ב-hint_he.
         status_he = "פורט תפוס"
         hint_he = _mismatch_hint_he(state, spec)
+    elif reason == "not_found":
+        status_he = "כתובת לא נמצאה"
+        hint_he = (
+            "הכתובת שהוגדרה לאפליקציה הזו בסביבה אינה מצביעה על אפליקציה "
+            "פרוסה — שירות האירוח החזיר 'לא נמצא'. בדקו את שם האפליקציה "
+            "בשירות ואת הכתובת שהוגדרה לה."
+        )
+    elif reason == "http_error":
+        status_he = "לא נגישה"
+        hint_he = (
+            "שירות האירוח החזיר שגיאה בבדיקת הזמינות. הקישור עדיין פועל — "
+            "ייתכן שהאפליקציה בתהליך התעוררות, ואפשר לנסות לפתוח אותה."
+        )
+    elif remote:
+        status_he = "לא נגישה"
+        hint_he = (
+            f"לא הצלחתי להגיע ל{spec.title} בכתובת שהוגדרה לה בסביבה — "
+            "ייתכן שאין חיבור לאינטרנט או ששירות האירוח אינו זמין כרגע. "
+            "הקישור עדיין פועל, אפשר לנסות לפתוח אותה."
+        )
     else:
         status_he = "לא רץ"
         hint_he = (
@@ -971,8 +1100,12 @@ def _app_card(spec: AppSpec, ml_metrics: str | None) -> dict:
         "available": available,
         "status_he": status_he,
         "hint_he": hint_he,
+        # פקודת ההרצה המקומית — רק כשהיעד מקומי. על יעד בענן היא הייתה
+        # שקר שימושי-למראה: היא מרימה אפליקציה ב-localhost, שאינה הכתובת
+        # שהכפתור שליד פותח. הלקוח מציג את כפתור ההעתקה רק אם השדה קיים,
+        # ולכן ההשמטה כאן מסלקת אותו בלי שינוי בצד הדפדפן.
         # לא מוצגת כטקסט: הלקוח מעתיק אותה ושם אותה כ-tooltip בלבד.
-        "command": spec.command,
+        "command": None if remote else spec.command,
         "open_label_he": f"פתיחת {spec.title}",
     }
 
@@ -1059,7 +1192,15 @@ def admin_overview(token: str = "") -> dict:
     # "מודל חיזוי" כמו זמינות תקינה. עכשיו כל כרטיס נבנה ממפרט אחד
     # (ADMIN_APPS) ואומר אמת על עצמו בלבד.
     ml_metrics = _ml_metrics_he()
-    apps = [_app_card(spec, ml_metrics) for spec in ADMIN_APPS]
+    # שני הכרטיסים נבנים במקביל, כי כל אחד מהם ממתין לבדיקת זמינות של
+    # יעד *אחר*: על יעד מקומי זו בדיקת TCP של פחות ממילישנייה, אבל על יעד
+    # בענן זו קריאת HTTP — נמדד ~2.3 שניות לכל אחת, כלומר ~4.6 שניות
+    # סדרתיות לטעינת הלוח. שתי הבדיקות בלתי תלויות לחלוטין (כתובות שונות,
+    # שום מצב משותף), ולכן הן שתי המתנות I/O מקבילות. הסדר נשמר (map).
+    with ThreadPoolExecutor(max_workers=len(ADMIN_APPS)) as pool:
+        apps = list(pool.map(
+            lambda spec: _app_card(spec, ml_metrics), ADMIN_APPS,
+        ))
 
     # כרטיסי המסמכים נבנים בשכבת המסמכים — כאן רק מעבירים את הטוקן,
     # שנדרש בקישורי ה-iframe/ההורדה (הם אינם יכולים לשלוח כותרות).

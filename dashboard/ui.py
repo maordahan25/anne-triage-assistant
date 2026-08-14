@@ -659,6 +659,17 @@ def sidebar_filters(df_all: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+# מכונה זו — אותה רשימה של server/app.py :: _LOCAL_HOSTS. משוכפלת בכוונה
+# (שלוש שורות) ולא מיובאת: dashboard/ אינו מייבא את שכבת השרת, בדיוק כפי
+# שהוא אינו מייבא את crew/ — האפליקציות חייבות לעלות בלי fastapi.
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0"}
+
+
+def is_local_url(url: str) -> bool:
+    """האם הכתובת מצביעה על המכונה הזו (ולכן פקודת הרצה מקומית רלוונטית)."""
+    return (urlsplit(url).hostname or "localhost") in _LOCAL_HOSTS
+
+
 def sidebar_sibling_link(title: str, url: str, command: str) -> None:
     """
     הפניה לאפליקציה האחות בסרגל הצד.
@@ -666,12 +677,20 @@ def sidebar_sibling_link(title: str, url: str, command: str) -> None:
     שתי האפליקציות רצות בנפרד (שני פורטים), ולכן קישור בלבד אינו מספיק:
     אם השנייה אינה רצה, הקישור מוביל לשום מקום. לכן מוצגת גם פקודת
     ההרצה שלה — אותה פקודה שמופיעה בכרטיס באזור המנהל.
+
+    **אלא אם הכתובת אינה מקומית**: כשהאחות פרוסה בענן (ANNE_ML_URL /
+    ANNE_DASHBOARD_URL מכוונים לשם), פקודת ההרצה מרימה אפליקציה
+    ב-localhost — שאינה הכתובת שהקישור פותח, ולכן היא אינה "מה לעשות אם
+    אינה רצה" אלא הצעה מטעה. אותה החלטה בדיוק בכרטיס באזור המנהל, ששולח
+    command=None על יעד מרוחק.
     """
     with st.sidebar:
         st.divider()
+        hint = (f"<br>אם אינה רצה: <code>{command}</code>"
+                if is_local_url(url) else "")
         st.markdown(
             f'<p class="sibling-app">↔ <a href="{url}" target="_blank">'
-            f"{title}</a><br>אם אינה רצה: <code>{command}</code></p>",
+            f"{title}</a>{hint}</p>",
             unsafe_allow_html=True,
         )
 

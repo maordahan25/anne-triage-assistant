@@ -2586,6 +2586,14 @@ def run_offline() -> int:
     # (ולא setdefault) גוברת על .env — load_dotenv אינו דורס משתנה שכבר
     # קיים בסביבה. בדיקות ה-backend עצמן מחליפות את המתג ומחזירות אותו.
     os.environ["ANNE_LOG_BACKEND"] = "sqlite"
+    # מאותה סיבה בדיוק, ולאותו כיוון: כתובות שתי אפליקציות ה-Streamlit
+    # מקובעות למקומי. כשה-.env של המפתח מכוון לאפליקציות הפרוסות בענן,
+    # בדיקת הזמינות של כרטיסי אזור המנהל הייתה יוצאת לרשת בכל הרצה של
+    # הסוללה ה"חינמית" — איטי, תלוי-אינטרנט, ולא מה שנבדק כאן. סיווג
+    # התשובות של היעד המרוחק נבדק בהמשך עם בודק מוזרק (set_remote_probe),
+    # בלי שום קריאת רשת.
+    os.environ["ANNE_DASHBOARD_URL"] = "http://localhost:8501"
+    os.environ["ANNE_ML_URL"] = "http://localhost:8502"
 
     import inspect
 
@@ -5164,6 +5172,105 @@ def run_offline() -> int:
                   # זהות לא ידועה אינה מאשימה: חוזרים לבדיקת ה-TCP בלבד
                   and unknown_identity["dashboard"]["available"] is True
                   and unknown_identity["ml"]["available"] is True,
+                  plan=("18",))
+
+        # ── יעד בענן: פורט TCP פתוח אינו "זמין" ─────────────────────────
+        # כשהכתובות מצביעות לאפליקציות פרוסות, בדיקת ה-TCP מאבדת כל כוח
+        # הבחנה: כל אפליקציות Streamlit Cloud חולקות host אחד, ולכן חיבור
+        # ל-443 מצליח לכל תת-דומיין שקיים ב-DNS — נמדד, גם לשם אפליקציה
+        # מומצא. כלומר הכרטיס היה מציג "זמין" תמיד. לכן ביעד מרוחק מכריע
+        # קוד הסטטוס של הכתובת *שלה*, וכאן זה נבדק עם בודק מוזרק ובלי שום
+        # קריאת רשת — כשבמקביל בדיקת ה-TCP מזויפת ל-True לכל כתובת, כדי
+        # להוכיח שהיא כבר אינה זו שמכריעה.
+        remote_urls = {
+            "ANNE_DASHBOARD_URL": "https://anne-dashboard.streamlit.app",
+            "ANNE_ML_URL": "https://anne-ml.streamlit.app",
+        }
+        asked: list[str] = []
+
+        def _remote_overview(status_for) -> dict:
+            """הכרטיסים כשהיעדים מרוחקים, עם בודק HTTP מוזרק (בלי רשת)."""
+            asked.clear()
+
+            def probe(url: str):
+                asked.append(url)
+                return status_for(url)
+
+            saved = {key: os.environ.get(key) for key in remote_urls}
+            original_tcp = server_app._port_is_open
+            os.environ.update(remote_urls)
+            server_app.set_remote_probe(probe)
+            server_app._port_is_open = lambda url, timeout=0.25: True
+            try:
+                cards = client.get(
+                    f"/api/admin/overview?token={token}"
+                ).json()["apps"]
+            finally:
+                server_app.set_remote_probe(None)
+                server_app._port_is_open = original_tcp
+                for key, value in saved.items():
+                    if value is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = value
+            return {app["key"]: app for app in cards}
+
+        live = _remote_overview(lambda url: 200)
+        # נבדקת הכתובת של כל כרטיס — לא localhost, ולא כתובת אחת לשתיהן
+        probed_own_address = (
+            len(asked) == 2
+            and not any("localhost" in url for url in asked)
+            and not any("127.0.0.1" in url for url in asked)
+            and all(url.endswith(server_app._HEALTH_PATH) for url in asked)
+            and any("anne-dashboard.streamlit.app" in url for url in asked)
+            and any("anne-ml.streamlit.app" in url for url in asked)
+        )
+        remote_live = (
+            live["dashboard"]["available"] is True
+            and live["ml"]["available"] is True
+            and live["dashboard"]["url"] == remote_urls["ANNE_DASHBOARD_URL"]
+            and live["ml"]["url"] == remote_urls["ANNE_ML_URL"]
+            # פקודת הרצה מקומית אינה מוצעת ליעד בענן (היא מרימה משהו
+            # ב-localhost, שאינו הכתובת שהכפתור פותח); הלקוח מציג את
+            # כפתור ההעתקה רק כשהשדה קיים, ולכן ההשמטה מסלקת אותו.
+            and live["dashboard"]["command"] is None
+            and live["ml"]["command"] is None
+            # וגם: הסטטוס אינו מצהיר על המודל השמור *במחשב הזה* כאילו הוא
+            # של האפליקציה הפרוסה
+            and live["ml"]["status_he"] == "זמין"
+        )
+        # 404 = הכתובת אינה מצביעה על אפליקציה פרוסה; כשל רשת = לא נגישה.
+        # שתי הודעות שונות בכוונה — הן דורשות שתי פעולות שונות מהמנהל.
+        missing = _remote_overview(lambda url: 404)
+        unreachable = _remote_overview(lambda url: None)
+        server_error = _remote_overview(lambda url: 500)
+        distinct_failures = (
+            missing["dashboard"]["available"] is False
+            and missing["dashboard"]["status_he"] == "כתובת לא נמצאה"
+            and "לא נמצא" in missing["dashboard"]["hint_he"]
+            and unreachable["ml"]["available"] is False
+            and unreachable["ml"]["status_he"] == "לא נגישה"
+            and unreachable["ml"]["status_he"] != missing["ml"]["status_he"]
+            and server_error["ml"]["available"] is False
+            # אף אחת מהודעות היעד המרוחק אינה שולחת להריץ בטרמינל
+            and "בטרמינל" not in missing["ml"]["hint_he"]
+            and "בטרמינל" not in unreachable["ml"]["hint_he"]
+        )
+        # כל כתובת נבדקת לגופה: אחת פרוסה והשנייה לא -> שני מצבים שונים
+        one_sided = _remote_overview(
+            lambda url: 200 if "anne-ml" in url else 404
+        )
+        per_address = (
+            one_sided["ml"]["available"] is True
+            and one_sided["dashboard"]["available"] is False
+        )
+        add_check(("18",),
+                  "אזור מנהל: ביעד בענן בדיקת הזמינות נעשית על הכתובת של "
+                  "הכרטיס (ולא על localhost) ולפי תשובת ה-HTTP שלה — פורט "
+                  "443 פתוח אינו 'זמין', 404 ו'לא נגישה' מובדלות, ופקודת "
+                  "הרצה מקומית אינה מוצעת",
+                  probed_own_address and remote_live and distinct_failures
+                  and per_address,
                   plan=("18",))
 
         # רשימה סגורה = אין path traversal ואין חשיפת סודות/לוג שיחות.

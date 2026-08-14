@@ -71,6 +71,13 @@ class DocSpec:
     download — קובץ להורדה כגיבוי; לרוב זהה ל-source, ולעיתים קובץ אחר
                (למשל הסטוריבורד: המציג בונה גלריה מה-JSON החי, וההורדה
                נשארת קובץ ה-xlsx המקורי).
+    page_lang/page_dir — שפת המסמך *עצמו* וכיוון הכתיבה שלו בעמוד הממותג.
+               ברירת המחדל עברית/rtl, כי כך כתובים כל מסמכי הפרויקט. מסמך
+               באנגלית חייב en/ltr: ב-rtl הפיסוק בסוף שורה נופל בצד הלא
+               נכון, וקורא מסך מכריז טקסט אנגלי בהגייה עברית (WCAG 3.1.1,
+               שפת העמוד — בניגוד ל-3.1.2 שאינו חל לפי ת"י 5568).
+               ההודעות של "קובץ חסר/ריק" נשארות עברית תמיד — הן הודעות
+               הממשק, לא תוכן המסמך.
     """
 
     key: str
@@ -82,6 +89,8 @@ class DocSpec:
     download_media_type: str | None = None
     download_inline: bool = False
     live_note_he: str = ""
+    page_lang: str = "he"
+    page_dir: str = "rtl"
 
     @property
     def download_path(self) -> Path | None:
@@ -165,6 +174,20 @@ DOCUMENTS: dict[str, DocSpec] = {
         source=PROJECT_ROOT / "README.md",
         download_media_type="text/plain; charset=utf-8",
         download_inline=True,
+    ),
+    "readme_en": DocSpec(
+        key="readme_en",
+        title="מדריך הפרויקט באנגלית",
+        description="אותו תיעוד מלא בתרגום לאנגלית — התקנה, הרצה, "
+                    "ארכיטקטורה ובדיקות",
+        kind="markdown",
+        source=PROJECT_ROOT / "README.en.md",
+        download_media_type="text/plain; charset=utf-8",
+        download_inline=True,
+        # המסמך היחיד בפרויקט שאינו עברית, ולכן העמוד הממותג שלו הוא
+        # en/ltr ולא ברירת המחדל he/rtl.
+        page_lang="en",
+        page_dir="ltr",
     ),
     "architecture": DocSpec(
         key="architecture",
@@ -1596,7 +1619,8 @@ _DOC_PAGE_CSS = """
 """
 
 
-def _doc_page(title: str, body_html: str) -> str:
+def _doc_page(title: str, body_html: str,
+              lang: str = "he", direction: str = "rtl") -> str:
     """
     עטיפת HTML ממותגת למסמך שמוצג ב-iframe (וגם להצהרת הנגישות הציבורית).
 
@@ -1607,10 +1631,15 @@ def _doc_page(title: str, body_html: str) -> str:
     בתחתית מוזרק הקרדיט מ-credit.py — כאן דווקא בתוך העמוד עצמו ולא
     במסגרת שמסביבו, כי זה העמוד ש*מודפס*: הדפסה מוציאה את תוכן ה-iframe
     בלבד, וגיליון הקרדיט כולל כלל @media print שמשאיר אותו שם.
+
+    lang/direction מגיעים מה-DocSpec ומתארים את שפת המסמך. הקרדיט עצמו
+    כופה על עצמו direction: rtl ב-CREDIT_CSS, וגושי הקוד כופים ltr — כך
+    ששני הכיוונים נכונים גם בעמוד אנגלי.
     """
     return (
         "<!DOCTYPE html>\n"
-        '<html lang="he" dir="rtl">\n<head>\n'
+        f'<html lang="{html_lib.escape(lang, quote=True)}" '
+        f'dir="{html_lib.escape(direction, quote=True)}">\n<head>\n'
         '<meta charset="utf-8" />\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1" />\n'
         f"<title>{html_lib.escape(title)}</title>\n"
@@ -1667,7 +1696,12 @@ def document_page_html(key: str) -> str:
         # קובץ HTML שלם מוגש כמות שהוא — הוא כבר מעוצב, וה-iframe מבודד
         # אותו מהעמוד. אין כאן עותק: הקריאה היא מהדיסק בכל בקשה.
         return text
-    return _doc_page(spec.title, f'<article class="doc-md">{markdown_to_html(text)}</article>')
+    return _doc_page(
+        spec.title,
+        f'<article class="doc-md">{markdown_to_html(text)}</article>',
+        lang=spec.page_lang,
+        direction=spec.page_dir,
+    )
 
 
 # ── ה-API שהשרת חושף ─────────────────────────────────────────────────────
