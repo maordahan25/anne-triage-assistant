@@ -25,6 +25,10 @@
 > Final project of the Hebrew University AI Developer program (School of Business Administration, 2026).
 > Educational project — Anne gives first-aid guidance only and is not a substitute for medical advice.
 
+
+https://github.com/user-attachments/assets/a011eeb5-4551-42ba-a739-c7009b6f6156
+
+
 ## What it does
 
 - **Interviews the patient in Hebrew** — a short, focused intake (anamnesis), one question at a time.
