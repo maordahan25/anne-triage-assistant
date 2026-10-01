@@ -1032,7 +1032,7 @@ deliberately **not** in version control — the API keys (`.env`), the Vector DB
 models (`ml/models/`). Therefore, after a clone:
 
 ```bash
-git clone https://github.com/maor125/anne-triage-assistant.git
+git clone https://github.com/maordahan25/anne-triage-assistant.git
 cd anne-triage-assistant
 
 # 1. Dependencies (the file name is llm_requirements.txt, not requirements.txt)

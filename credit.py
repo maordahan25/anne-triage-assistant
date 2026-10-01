@@ -29,7 +29,7 @@ CREDIT_TEXT_HE = f"{CREDIT_PREFIX_HE}{AUTHOR_NAME_HE}{CREDIT_SUFFIX_HE}"
 
 # ── הקישורים ─────────────────────────────────────────────────────────────
 LINKEDIN_URL = "https://www.linkedin.com/in/maordahan/"
-GITHUB_URL = "https://github.com/maor125"
+GITHUB_URL = "https://github.com/maordahan25"
 
 # rel="noopener noreferrer" הוא דרישת אבטחה ולא נוי: בלי noopener, הדף
 # שנפתח מקבל הפניה ל-window.opener ויכול לנווט את החלון שלנו למקום אחר.

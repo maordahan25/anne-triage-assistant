@@ -20,7 +20,7 @@ const ANNE_CREDIT = {
   prefix: "נבנה על ידי ",
   suffix: " במסגרת קורס AI מטעם בית הספר למנהל עסקים של האוניברסיטה העברית",
   linkedinUrl: "https://www.linkedin.com/in/maordahan/",
-  githubUrl: "https://github.com/maor125",
+  githubUrl: "https://github.com/maordahan25",
   linkedinAria: "פרופיל LinkedIn של מאור דהן",
   githubAria: "פרופיל GitHub של מאור דהן",
   minTapTargetPx: 44,

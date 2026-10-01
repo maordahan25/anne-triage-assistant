@@ -900,7 +900,7 @@ git push
 (`anne_log*.db`) ומודלי החיזוי (`ml/models/`). לכן, אחרי clone:
 
 ```bash
-git clone https://github.com/maor125/anne-triage-assistant.git
+git clone https://github.com/maordahan25/anne-triage-assistant.git
 cd anne-triage-assistant
 
 # 1. תלויות (שם הקובץ הוא llm_requirements.txt, לא requirements.txt)
